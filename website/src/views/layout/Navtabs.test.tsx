@@ -47,6 +47,7 @@ describe(Navtabs, () => {
           "Venues",
           "Planner",
           "Settings",
+          "Sign in",
           "Contribute",
           "Whispers",
         ]
@@ -60,6 +61,7 @@ describe(Navtabs, () => {
           "Venues",
           "Planner",
           "Settings",
+          "Sign in",
           "Contribute",
           "Whispers",
         ]
@@ -80,6 +82,7 @@ describe(Navtabs, () => {
           "Venues",
           "Planner",
           "Settings",
+          "Sign in",
           "Contribute",
           "Whispers",
         ]
@@ -94,6 +97,7 @@ describe(Navtabs, () => {
           "Venues",
           "Planner",
           "Settings",
+          "Sign in",
           "Contribute",
           "Whispers",
         ]

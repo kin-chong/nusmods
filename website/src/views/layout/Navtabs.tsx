@@ -9,11 +9,16 @@ import {
   Cpu,
   Heart,
   Map,
+  LogIn,
   Settings,
   Star,
   Target,
   Trello,
 } from 'react-feather';
+
+import { signInWithPopup, onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { auth, googleProvider } from 'firebase';
+import { useEffect, useState } from 'react';
 
 import { showCPExTab } from 'featureFlags';
 import ExternalLink from 'views/components/ExternalLink';
@@ -27,9 +32,26 @@ import styles from './Navtabs.scss';
 
 export const NAVTAB_HEIGHT = 48;
 
+
+const onSignIn = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    console.log('Signed in:', result.user?.email);
+  } catch (e: any) {
+    console.error('Firebase sign-in error:', e?.code, e?.message, e);
+  }
+};
+
+
 const Navtabs: FC = () => {
   const activeSemester = useSelector(({ app }: State) => app.activeSemester);
   const beta = useSelector(({ settings }: State) => settings.beta);
+
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => onAuthStateChanged(auth, (u) => setUser(u)), []);
+
+  const onSignOut = () => signOut(auth);
 
   const tabProps = {
     className: styles.link,
@@ -77,6 +99,37 @@ const Navtabs: FC = () => {
         <Settings />
         <span className={styles.title}>Settings</span>
       </NavLink>
+      {user ? (
+        <NavLink
+          {...tabProps}
+          className={classnames(tabProps.className, styles.hiddenOnMobile)}
+          to="#"
+          isActive={() => false}
+          onClick={(e) => {
+            e.preventDefault();
+            onSignOut();
+          }}
+        >
+          <LogIn />
+          <span className={styles.title}>
+      {user.displayName ?? 'Account'}
+    </span>
+        </NavLink>
+      ) : (
+        <NavLink
+          {...tabProps}
+          className={classnames(tabProps.className, styles.hiddenOnMobile)}
+          to="#"
+          isActive={() => false}
+          onClick={(e) => {
+            e.preventDefault();
+            onSignIn();
+          }}
+        >
+          <LogIn />
+          <span className={styles.title}>Sign in</span>
+        </NavLink>
+      )}
       <NavLink
         {...tabProps}
         className={classnames(tabProps.className, styles.hiddenOnMobile)}

@@ -7,6 +7,10 @@ import { LessonIndex, ModuleCode } from 'types/modules';
 import { ModuleLessonConfig, SemTimetableConfig } from 'types/timetables';
 import { ColorMapping, TimetablesState } from 'types/reducers';
 
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import type { User } from 'firebase/auth';
+
+
 import config from 'config';
 import {
   ADD_MODULE,
@@ -28,6 +32,46 @@ import {
 import { getNewColor } from 'utils/colors';
 import { SET_EXPORTED_DATA } from 'actions/constants';
 import { Actions } from '../types/actions';
+
+import { db } from '../firebase.js';
+
+export type LessonSelections = Record<string, Record<string, string>>;
+
+export type SavedTimetable = {
+  semester: number;
+  activeSemester: string;
+  timetable: SemTimetableConfig; // ✅ matches reducer
+  mods?: string[];
+  updatedAt?: unknown;
+};
+
+function timetableDocRef(uid: string, semesterKey: string) {
+  return doc(db, 'users', uid, 'timetables', semesterKey);
+}
+
+export async function saveTimetable(
+  user: User,
+  semesterKey: string,
+  data: Omit<SavedTimetable, 'updatedAt'>,
+) {
+  await setDoc(
+    timetableDocRef(user.uid, semesterKey),
+    {
+      ...data,
+      mods: data.mods ?? Object.keys(data.timetable),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+
+export async function loadTimetable(user: User, semesterKey: string) {
+  const snap = await getDoc(timetableDocRef(user.uid, semesterKey));
+  if (!snap.exists()) return null;
+  return snap.data() as SavedTimetable;
+}
+
 
 export const persistConfig = {
   /* eslint-disable no-useless-computed-key */
