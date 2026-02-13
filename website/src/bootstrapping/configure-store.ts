@@ -18,17 +18,85 @@ import { resetTimetable, SET_TIMETABLE } from 'actions/timetables';
 import { loadTimetable } from 'reducers/timetables';
 import { auth } from '../firebase';
 
+// For redux-devtools-extensions - see
+// https://github.com/zalmoxisus/redux-devtools-extension
 const composeEnhancers: typeof compose = window.__REDUX_DEVTOOLS_EXTENSION_COMPOSE__ || compose;
 
+// immer uses Object.freeze on returned state objects, which is incompatible with
+// redux-persist. See https://github.com/rt2zz/redux-persist/issues/747
 setAutoFreeze(false);
 
+// --------------------
+// Firestore semester key helpers
+// --------------------
+function normalizeAcademicYear(academicYear: string) {
+  return academicYear.replace(/^AY/i, '').replace('/', '-');
+}
+
 function makeSemesterKey(academicYear: string, semester: number) {
-  const normalized = academicYear.replace(/^AY/i, '').replace('/', '-');
-  console.log('makekey', `${normalized}_S${semester}`);
-  return `${normalized}_S${semester}`;
+  return `${normalizeAcademicYear(academicYear)}_S${semester}`;
+}
+
+// --------------------
+// In-memory cache of loaded semesters (per user + academic year)
+// --------------------
+const loadedSemesterKeys = new Set<string>();
+let cachedUid: string | null = null;
+
+function makeCacheKey(uid: string, academicYear: string, semester: number) {
+  return `${uid}:${normalizeAcademicYear(academicYear)}:S${semester}`;
+}
+
+async function loadSemesterFromFirestore(store: any, semester: number) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const state = store.getState();
+  const { academicYear } = state.timetables;
+
+  const cacheKey = makeCacheKey(user.uid, academicYear, semester);
+  if (loadedSemesterKeys.has(cacheKey)) return;
+
+  const semesterKey = makeSemesterKey(academicYear, semester);
+  const saved = await loadTimetable(user, semesterKey);
+
+  // Mark loaded even if nothing exists, so switching tabs doesn't refetch repeatedly
+  loadedSemesterKeys.add(cacheKey);
+
+  if (!saved?.timetable) return;
+
+  store.dispatch({
+    type: SET_TIMETABLE,
+    payload: {
+      semester,
+      timetable: saved.timetable,
+      colors: undefined,
+      hiddenModules: undefined,
+      taModules: undefined,
+    },
+  });
+}
+
+function resetAllSemesters(store: any) {
+  const state = store.getState();
+
+  // Reset semesters we currently have in memory
+  Object.keys(state.timetables.lessons)
+    .map(Number)
+    .filter((n) => Number.isFinite(n))
+    .forEach((s) => {
+      store.dispatch(resetTimetable(s));
+    });
+
+  // If none exist yet, be safe and reset 1..4
+  if (Object.keys(state.timetables.lessons).length === 0) {
+    [1, 2, 3, 4].forEach((s) => store.dispatch(resetTimetable(s)));
+  }
 }
 
 export default function configureStore(defaultState?: State) {
+  // Clear legacy reduxState deprecated by https://github.com/nusmodifications/nusmods/pull/669
+  // to reduce the amount of data NUSMods is using
   getLocalStorage().removeItem('reduxState');
 
   const middlewares = [ravenMiddleware, thunk, requestsMiddleware, firestoreTimetableSync];
@@ -41,6 +109,7 @@ export default function configureStore(defaultState?: State) {
       collapsed: true,
       duration: true,
       diff: true,
+      // Avoid diffing actions that insert a lot of stuff into the state to prevent console from lagging
       diffPredicate: (_getState: GetState, action: Actions) =>
         !action.type.startsWith('FETCH_MODULE_LIST') && !action.type.startsWith('persist/'),
     });
@@ -51,84 +120,42 @@ export default function configureStore(defaultState?: State) {
 
   const store = createStore(
     rootReducer,
+    // Redux typings does not seem to allow non-JSON serialized values in PreloadedState so this needs to be casted
     defaultState as PreloadedState<State> | undefined,
     composeEnhancers(storeEnhancer),
   );
 
-  // ✅ Create persistor BEFORE any handler tries to use it
   const persistor = persistStore(store);
 
-  // ✅ Single auth listener handles both login + logout
+  // --------------------
+  // Auth: load + clear + cache management
+  // --------------------
   onAuthStateChanged(auth, async (user) => {
-    const state = store.getState();
-    const semester = state.app.activeSemester;
-    const { academicYear } = state.timetables;
-    const semesterKey = makeSemesterKey(academicYear, semester);
-
-    console.log('semkey', semesterKey);
-
     if (!user) {
-      const state = store.getState();
-
-      // Reset every semester we currently have in memory (usually 1..4)
-      Object.keys(state.timetables.lessons)
-        .map(Number)
-        .filter((n) => Number.isFinite(n))
-        .forEach((semester) => {
-          store.dispatch(resetTimetable(semester));
-        });
-
+      cachedUid = null;
+      loadedSemesterKeys.clear();
+      resetAllSemesters(store);
       return;
     }
 
-    try {
-      const saved = await loadTimetable(user, semesterKey);
-      console.log('[firestore load] saved =', saved);
-      if (!saved?.timetable) return;
+    // User changed (or first login)
+    if (cachedUid !== user.uid) {
+      cachedUid = user.uid;
+      loadedSemesterKeys.clear();
+    }
 
-      store.dispatch({
-        type: SET_TIMETABLE,
-        payload: {
-          semester,
-          timetable: saved.timetable,
-          colors: undefined,
-          hiddenModules: undefined,
-          taModules: undefined,
-        },
-      });
+    try {
+      // Cache all sems once on login
+      await Promise.all([1, 2, 3, 4].map((s) => loadSemesterFromFirestore(store, s)));
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.error('Failed to load timetable from Firestore:', e);
+      console.error('Failed to load timetables from Firestore:', e);
     }
   });
 
-  async function loadSemesterFromFirestore(store: any, semester: number) {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const state = store.getState();
-    const { academicYear } = state.timetables;
-    const semesterKey = makeSemesterKey(academicYear, semester);
-
-    const saved = await loadTimetable(user, semesterKey);
-    if (!saved?.timetable) return;
-
-    store.dispatch({
-      type: SET_TIMETABLE,
-      payload: {
-        semester,
-        timetable: saved.timetable,
-        colors: undefined,
-        hiddenModules: undefined,
-        taModules: undefined,
-      },
-    });
-  }
-
-  if (module.hot) {
-    module.hot.accept('../reducers', () => store.replaceReducer(rootReducer));
-  }
-
+  // --------------------
+  // Load on semester change (cached)
+  // --------------------
   let lastSemester: number | null = null;
 
   store.subscribe(() => {
@@ -138,13 +165,16 @@ export default function configureStore(defaultState?: State) {
     if (lastSemester === semester) return;
     lastSemester = semester;
 
-    // Fire-and-forget; you can add try/catch if you want logs
     loadSemesterFromFirestore(store, semester).catch((e) => {
       // eslint-disable-next-line no-console
       console.error('Failed to load semester timetable:', e);
     });
   });
 
+  if (module.hot) {
+    // Enable webpack hot module replacement for reducers
+    module.hot.accept('../reducers', () => store.replaceReducer(rootReducer));
+  }
 
   return { persistor, store };
 }

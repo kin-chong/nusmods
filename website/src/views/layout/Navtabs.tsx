@@ -37,6 +37,7 @@ const onSignIn = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     console.log('Signed in:', result.user?.email);
+    window.location.reload();
   } catch (e: any) {
     console.error('Firebase sign-in error:', e?.code, e?.message, e);
   }
@@ -102,7 +103,7 @@ const Navtabs: FC = () => {
       {user ? (
         <NavLink
           {...tabProps}
-          className={classnames(tabProps.className, styles.hiddenOnMobile)}
+          className={classnames(tabProps.className)}
           to="#"
           isActive={() => false}
           onClick={(e) => {
@@ -110,15 +111,15 @@ const Navtabs: FC = () => {
             onSignOut();
           }}
         >
-          <LogIn />
+          <LogIn/>
           <span className={styles.title}>
-      {user.displayName ?? 'Account'}
-    </span>
+            {user.displayName ?? 'Account'}
+          </span>
         </NavLink>
       ) : (
         <NavLink
           {...tabProps}
-          className={classnames(tabProps.className, styles.hiddenOnMobile)}
+          className={classnames(tabProps.className)}
           to="#"
           isActive={() => false}
           onClick={(e) => {
@@ -126,7 +127,7 @@ const Navtabs: FC = () => {
             onSignIn();
           }}
         >
-          <LogIn />
+          <LogIn/>
           <span className={styles.title}>Sign in</span>
         </NavLink>
       )}
