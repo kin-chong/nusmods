@@ -145,8 +145,9 @@ export default function configureStore(defaultState?: State) {
     }
 
     try {
-      // Cache all sems once on login
-      await Promise.all([1, 2, 3, 4].map((s) => loadSemesterFromFirestore(store, s)));
+      // Only load the active semester immediately; others load lazily when the user switches
+      const activeSemester = store.getState().app.activeSemester;
+      await loadSemesterFromFirestore(store, activeSemester);
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error('Failed to load timetables from Firestore:', e);
@@ -156,7 +157,8 @@ export default function configureStore(defaultState?: State) {
   // --------------------
   // Load on semester change (cached)
   // --------------------
-  let lastSemester: number | null = null;
+  // Initialize from current state so the first Redux action doesn't trigger a spurious Firestore read
+  let lastSemester: number | null = store.getState().app?.activeSemester ?? null;
 
   store.subscribe(() => {
     const state = store.getState();
