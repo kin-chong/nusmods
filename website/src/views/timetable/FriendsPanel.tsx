@@ -142,18 +142,22 @@ const FriendName: FC<{ friend: Friend; children?: ReactNode }> = ({ friend, chil
           aria-pressed={!friend.hidden}
           onClick={() => dispatch(setFriendHidden(friend.id, !friend.hidden))}
         >
-          {friend.hidden ? <EyeOff size={18} /> : <Eye size={18} />}
+          {friend.hidden ? <EyeOff /> : <Eye />}
         </button>
         <span className={styles.spacer} />
         {children}
         <button
           type="button"
-          className={classnames('btn btn-outline-secondary btn-svg', styles.headerButton)}
+          className={classnames(
+            'btn btn-outline-secondary btn-svg',
+            styles.headerButton,
+            styles.iconButton,
+          )}
           aria-label={`Rename ${friend.name}`}
           title={`Rename ${friend.name}`}
           onClick={() => setDraft(friend.name)}
         >
-          <Edit2 size={16} />
+          <Edit2 />
         </button>
       </>
     );
@@ -330,12 +334,12 @@ const FriendCourseList: FC<FriendCourseListProps> = ({
         </FriendName>
         <button
           type="button"
-          className="btn btn-outline-secondary btn-svg"
+          className={classnames('btn btn-outline-secondary btn-svg', styles.iconButton)}
           aria-label={`Remove ${friend.name}`}
           title={`Remove ${friend.name}`}
           onClick={() => dispatch(removeFriend(friend.id))}
         >
-          <Trash size={16} />
+          <Trash />
         </button>
       </header>
 
