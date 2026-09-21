@@ -2,6 +2,7 @@ import { REHYDRATE } from 'redux-persist/es/constants';
 
 import * as app from 'actions/app';
 import * as exportActions from 'actions/export';
+import * as friends from 'actions/friends';
 import * as moduleBank from 'actions/moduleBank';
 import * as planner from 'actions/planner';
 import * as settings from 'actions/settings';
@@ -13,6 +14,7 @@ import { ExtractActionShape } from './redux';
 
 type AppAction = ExtractActionShape<typeof app>;
 type ExportActionsAction = ExtractActionShape<typeof exportActions>;
+type FriendsAction = ExtractActionShape<typeof friends>;
 type ModuleBankAction =
   | ExtractActionShape<typeof moduleBank.Internal>
   | moduleBank.ModuleBankRequestActions;
@@ -38,6 +40,7 @@ type ReduxPersistActions = {
 export type Actions =
   | AppAction
   | ExportActionsAction
+  | FriendsAction
   | ModuleBankAction
   | PlannerAction
   | SettingsAction

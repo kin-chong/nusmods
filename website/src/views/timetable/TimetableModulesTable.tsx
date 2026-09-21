@@ -8,7 +8,7 @@ import { produce } from 'immer';
 import { Book, BookOpen, Eye, EyeOff, Trash } from 'react-feather';
 import { ModuleWithColor, TombstoneModule } from 'types/views';
 import { ColorIndex } from 'types/timetables';
-import { ModuleCode, Semester } from 'types/modules';
+import { Module, ModuleCode, Semester } from 'types/modules';
 import { State as StoreState } from 'types/state';
 import { ModuleTableOrder } from 'types/reducers';
 
@@ -55,6 +55,23 @@ export type Props = {
   onRemoveModule: (moduleCode: ModuleCode) => void;
   resetTombstone: () => void;
 };
+
+// Second row of text consists of the exam date and the MCs
+export function getModuleSubtitle(module: Module, semester: Semester): string[] {
+  const secondRowText = [renderMCs(module.moduleCredit)];
+  if (config.examAvailabilitySet.has(semester)) {
+    const examDuration = getExamDuration(module, semester);
+    const examDate = getExamDate(module, semester);
+
+    if (examDuration) {
+      secondRowText.unshift(renderExamDuration(examDuration));
+    }
+
+    secondRowText.unshift(examDate ? `Exam: ${getFormattedExamDate(module, semester)}` : 'No Exam');
+  }
+
+  return secondRowText;
+}
 
 export const TimetableModulesTableComponent: React.FC<Props> = (props) => {
   const renderModuleActions = (module: ModuleWithColor) => {
@@ -130,20 +147,7 @@ export const TimetableModulesTableComponent: React.FC<Props> = (props) => {
       return <ModuleTombstone module={module} resetTombstone={resetTombstone} />;
     }
 
-    // Second row of text consists of the exam date and the MCs
-    const secondRowText = [renderMCs(module.moduleCredit)];
-    if (config.examAvailabilitySet.has(semester)) {
-      const examDuration = getExamDuration(module, semester);
-      const examDate = getExamDate(module, semester);
-
-      if (examDuration) {
-        secondRowText.unshift(renderExamDuration(examDuration));
-      }
-
-      secondRowText.unshift(
-        examDate ? `Exam: ${getFormattedExamDate(module, semester)}` : 'No Exam',
-      );
-    }
+    const secondRowText = getModuleSubtitle(module, semester);
 
     return (
       <>

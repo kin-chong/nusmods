@@ -2,7 +2,13 @@ import { AxiosError } from 'axios';
 import { RegPeriodType, ScheduleType } from 'config';
 
 import { ColorSchemePreference } from './settings';
-import { TaModulesConfigV1, ColorIndex, LessonWithIndex, TimetableConfig } from './timetables';
+import {
+  TaModulesConfigV1,
+  ColorIndex,
+  LessonWithIndex,
+  SemTimetableConfig,
+  TimetableConfig,
+} from './timetables';
 import {
   Faculty,
   Module,
@@ -124,6 +130,22 @@ export type TimetablesState = {
   readonly academicYear: string;
   // Mapping of academic year to old timetable config
   readonly archive: { [key: string]: TimetableConfig };
+};
+
+/* friends.ts */
+// A friend whose timetable was entered manually, so it can be overlaid on the user's timetable
+export type Friend = {
+  readonly id: string;
+  readonly name: string;
+  // The friend's lessons for each semester, in the same format as the user's own timetable
+  readonly timetable: { readonly [semester: number]: SemTimetableConfig };
+};
+
+export type FriendsState = {
+  readonly friends: readonly Friend[];
+  // The academic year that the friends' timetables are for, since the classes are stored as
+  // positions in the module data, which is different every year
+  readonly academicYear: string;
 };
 
 /* venueBank.js */

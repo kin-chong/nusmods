@@ -1,5 +1,6 @@
 import {
   AppState,
+  FriendsState,
   PlannerState,
   Requests,
   SettingsState,
@@ -15,6 +16,7 @@ export type State = {
   venueBank: VenueBank;
   requests: Requests;
   timetables: TimetablesState;
+  friends: FriendsState;
   app: AppState;
   theme: ThemeState;
   settings: SettingsState;

@@ -51,6 +51,9 @@ function checkHover(
 
   if (!isInteractable(lesson)) return false;
 
+  // A friend being in the same class as someone else does not make them the same lesson group
+  if (lesson.friendId !== hoverLesson.friendId) return false;
+
   if (lesson.moduleCode !== hoverLesson.moduleCode || lesson.lessonType !== hoverLesson.lessonType)
     return false;
 
@@ -131,7 +134,9 @@ const TimetableCell: React.FC<Props> = (props) => {
 
   const className = classnames(
     styles.baseCell,
-    getLessonIdentifier(lesson),
+    // A friend can be in the same class as the user, and that must not confuse the scroll
+    // position tracking, which looks up the modified lesson by this class
+    !lesson.friendName && getLessonIdentifier(lesson),
     elements.lessons,
     transparent || lesson.colorIndex === TRANSPARENT_COLOR_INDEX
       ? styles.transparentCell
@@ -163,6 +168,7 @@ const TimetableCell: React.FC<Props> = (props) => {
         <div className={styles.cellHeaader}>
           <div className={styles.moduleName}>
             {moduleName}
+            {lesson.friendName && ` (${lesson.friendName})`}
             {isInteractable(lesson) && lesson.isTaInTimetable && ' (TA)'}
           </div>
 

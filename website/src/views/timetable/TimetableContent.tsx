@@ -3,9 +3,11 @@ import classnames from 'classnames';
 import { connect } from 'react-redux';
 import { sortBy, difference, values, flatten, isEmpty, map, filter, isArray, keys } from 'lodash';
 
-import { ColorMapping, HORIZONTAL, ModulesMap, TimetableOrientation } from 'types/reducers';
+import { ColorMapping, Friend, HORIZONTAL, ModulesMap, TimetableOrientation } from 'types/reducers';
 import { LessonIndex, LessonType, Module, ModuleCode, Semester } from 'types/modules';
 import {
+  ActiveFriendLesson,
+  ModuleLessonConfig,
   SemTimetableConfig,
   SemTimetableConfigWithLessons,
   InteractableLesson,
@@ -23,6 +25,7 @@ import {
   removeModule,
   resetTimetable,
 } from 'actions/timetables';
+import { setFriendModule } from 'actions/friends';
 import { formatExamDate, getExamDate } from 'utils/modules';
 import {
   arrangeLessonsForWeek,
@@ -33,6 +36,7 @@ import {
   hydrateSemTimetableWithLessons,
   timetableLessonsArray,
 } from 'utils/timetables';
+import { arrangeFriendLanes, getFriendsLessons, getSharedColors } from 'utils/friends';
 import { resetScrollPosition } from 'utils/react';
 import ModulesSelectContainer from 'views/timetable/ModulesSelectContainer';
 import Announcements from 'views/components/notfications/Announcements';
@@ -46,6 +50,7 @@ import TimetableActions from './TimetableActions';
 import TimetableModulesTable from './TimetableModulesTable';
 import ExamCalendar from './ExamCalendar';
 import ModulesTableFooter from './ModulesTableFooter';
+import FriendsPanel from './FriendsPanel';
 import styles from './TimetableContent.scss';
 
 type ModifiedCell = {
@@ -73,6 +78,7 @@ type Props = OwnProps & {
   showTitle: boolean;
   hiddenInTimetable: ModuleCode[];
   taInTimetable: ModuleCode[];
+  friends: readonly Friend[];
 
   // Actions
   addModule: (semester: Semester, moduleCode: ModuleCode) => void;
@@ -98,12 +104,20 @@ type Props = OwnProps & {
     lessonIndices: LessonIndex[],
   ) => void;
   cancelModifyLesson: () => void;
+  setFriendModule: (
+    friendId: string,
+    semester: Semester,
+    moduleCode: ModuleCode,
+    lessonConfig: ModuleLessonConfig,
+  ) => void;
 };
 
 type State = {
   isScrolledHorizontally: boolean;
   showExamCalendar: boolean;
   tombstone: TombstoneModule | null;
+  // The lesson of a friend that is being changed. The user's own lesson is kept in the store.
+  activeFriendLesson: ActiveFriendLesson | null;
 };
 
 /**
@@ -135,6 +149,7 @@ class TimetableContent extends React.Component<Props, State> {
     isScrolledHorizontally: false,
     showExamCalendar: false,
     tombstone: null,
+    activeFriendLesson: null,
   };
 
   timetableRef = React.createRef<HTMLDivElement>();
@@ -185,9 +200,60 @@ class TimetableContent extends React.Component<Props, State> {
     resetScrollPosition();
   };
 
+  /**
+   * Changing a friend's class works like changing the user's own: click on a lesson to see the
+   * other classes, then click on one of them to pick it.
+   */
+  modifyFriendCell = (friendsLessons: InteractableLesson[], lesson: InteractableLesson): void => {
+    const { activeFriendLesson } = this.state;
+    const { semester, friends } = this.props;
+    const { friendId } = lesson;
+
+    if (!activeFriendLesson) {
+      if (!friendId) return;
+
+      // Only one lesson can be changed at a time
+      if (this.props.activeLesson) this.props.cancelModifyLesson();
+      this.setState({ activeFriendLesson: { friendId, lesson } });
+      return;
+    }
+
+    const friend = friends.find(({ id }) => id === activeFriendLesson.friendId);
+    if (friend && friendId === friend.id && lesson.canBeAddedToLessonConfig) {
+      const { moduleCode, lessonType, classNo } = lesson;
+      const lessonIndices = friendsLessons
+        .filter(
+          (friendLesson) =>
+            friendLesson.friendId === friendId &&
+            friendLesson.moduleCode === moduleCode &&
+            friendLesson.lessonType === lessonType &&
+            friendLesson.classNo === classNo,
+        )
+        .map((friendLesson) => friendLesson.lessonIndex);
+
+      this.props.setFriendModule(friend.id, semester, moduleCode, {
+        ...friend.timetable[semester]?.[moduleCode],
+        [lessonType]: lessonIndices,
+      });
+    }
+
+    this.setState({ activeFriendLesson: null });
+    resetScrollPosition();
+  };
+
   modifyCell =
-    (moduleTimetable: InteractableLesson[], activeLesson: LessonWithIndex | null) =>
+    (
+      moduleTimetable: InteractableLesson[],
+      activeLesson: LessonWithIndex | null,
+      friendsLessons: InteractableLesson[],
+    ) =>
     (lesson: InteractableLesson, position: ClientRect): void => {
+      // Friends' lessons are changed separately from the user's own
+      if (lesson.friendId || this.state.activeFriendLesson) {
+        this.modifyFriendCell(friendsLessons, lesson);
+        return;
+      }
+
       // If activeLesson exists, then the user is choosing a cell to modify
       const isChoosing = !!activeLesson;
       if (isChoosing) {
@@ -238,6 +304,16 @@ class TimetableContent extends React.Component<Props, State> {
 
       resetScrollPosition();
     }
+  };
+
+  cancelModifyAnyLesson = (): void => {
+    if (this.state.activeFriendLesson) {
+      this.setState({ activeFriendLesson: null });
+
+      resetScrollPosition();
+    }
+
+    this.cancelModifyLesson();
   };
 
   isHiddenInTimetable = (moduleCode: ModuleCode): boolean =>
@@ -358,6 +434,7 @@ class TimetableContent extends React.Component<Props, State> {
       readOnly,
       hiddenInTimetable,
       taInTimetable,
+      friends,
     } = this.props;
 
     const { showExamCalendar } = this.state;
@@ -375,7 +452,21 @@ class TimetableContent extends React.Component<Props, State> {
       this.isTaInTimetable,
       activeLesson,
     );
-    const arrangedLessons = arrangeLessonsForWeek(interactableLesson);
+    // Friends are only overlaid on the user's own timetable, not on shared timetables
+    const shownFriends = readOnly ? [] : friends;
+    const friendColors = getSharedColors(this.props.timetable, colors, shownFriends, semester);
+    const friendsLessons = getFriendsLessons(
+      shownFriends,
+      modules,
+      semester,
+      friendColors,
+      this.state.activeFriendLesson,
+    );
+    const arrangedLessons = arrangeFriendLanes(
+      arrangeLessonsForWeek(interactableLesson),
+      shownFriends,
+      friendsLessons,
+    );
 
     const isVerticalOrientation = timetableOrientation !== HORIZONTAL;
     const isShowingTitle = !isVerticalOrientation && showTitle;
@@ -386,8 +477,8 @@ class TimetableContent extends React.Component<Props, State> {
         className={classnames('page-container', styles.container, {
           verticalMode: isVerticalOrientation,
         })}
-        onClick={this.cancelModifyLesson}
-        onKeyUp={(e) => e.key === 'Escape' && this.cancelModifyLesson()} // Quit modifying when Esc is pressed
+        onClick={this.cancelModifyAnyLesson}
+        onKeyUp={(e) => e.key === 'Escape' && this.cancelModifyAnyLesson()} // Quit modifying when Esc is pressed
       >
         <Title>Timetable</Title>
 
@@ -427,7 +518,7 @@ class TimetableContent extends React.Component<Props, State> {
                   isVerticalOrientation={isVerticalOrientation}
                   isScrolledHorizontally={this.state.isScrolledHorizontally}
                   showTitle={isShowingTitle}
-                  onModifyCell={this.modifyCell(interactableLesson, activeLesson)}
+                  onModifyCell={this.modifyCell(interactableLesson, activeLesson, friendsLessons)}
                 />
               </div>
             )}
@@ -475,6 +566,15 @@ class TimetableContent extends React.Component<Props, State> {
                   taInTimetable={taInTimetable}
                 />
               </div>
+              {!readOnly && (
+                <div className="col-12 no-export">
+                  <FriendsPanel
+                    semester={semester}
+                    colors={friendColors}
+                    horizontalOrientation={!isVerticalOrientation}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -504,6 +604,7 @@ function mapStateToProps(state: StoreState, ownProps: OwnProps) {
     showTitle: state.theme.showTitle,
     hiddenInTimetable,
     taInTimetable: taModuleCodes,
+    friends: state.friends.friends,
   };
 }
 
@@ -516,4 +617,5 @@ export default connect(mapStateToProps, {
   addLesson,
   removeLesson,
   cancelModifyLesson,
+  setFriendModule,
 })(TimetableContent);

@@ -1215,6 +1215,7 @@ export function getHoverLesson(lesson: InteractableLesson): HoverLesson {
     moduleCode: lesson.moduleCode,
     lessonType: lesson.lessonType,
     lessonIndex: lesson.lessonIndex,
+    friendId: lesson.friendId,
   };
 }
 

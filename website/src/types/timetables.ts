@@ -52,7 +52,18 @@ export type Lesson = RawLesson & {
 
 export type LessonWithIndex = Lesson & { readonly lessonIndex: LessonIndex };
 
-export type ColoredLesson = Lesson & { colorIndex: ColorIndex };
+export type ColoredLesson = Lesson & {
+  colorIndex: ColorIndex;
+  // Set when the lesson belongs to a friend instead of the user
+  friendId?: string;
+  friendName?: string;
+};
+
+// The friend's lesson that is being changed, which is picked by clicking on it in the timetable
+export type ActiveFriendLesson = {
+  readonly friendId: string;
+  readonly lesson: LessonWithIndex;
+};
 
 /**
  * Interactable lessons are lessons that appear on the Timetable page
@@ -114,6 +125,8 @@ export type HoverLesson = {
   readonly moduleCode: ModuleCode;
   readonly lessonType: LessonType;
   readonly lessonIndex: LessonIndex;
+  // Only lessons of the same friend, or of the user if this is not set, are highlighted together
+  readonly friendId?: string;
 };
 
 export type ColorIndex = number;

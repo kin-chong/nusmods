@@ -1,0 +1,58 @@
+@import '~styles/utils/modules-entry';
+
+.friends {
+  margin-top: 1rem;
+}
+
+.addFriend {
+  display: flex;
+  margin-bottom: 1rem;
+
+  input {
+    margin-right: 0.5rem;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.friend {
+  margin-bottom: 1.5rem;
+}
+
+.courses {
+  margin-top: 1rem;
+}
+
+.friendHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.renameForm {
+  flex: 1;
+}
+
+.renameButton {
+  margin-right: 0.5rem;
+}
+
+.friendName {
+  overflow: hidden;
+  flex: 1;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Looks like the color of the user's own courses, but cannot be changed
+.color {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+}
