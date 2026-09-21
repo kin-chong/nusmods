@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import classnames from 'classnames';
 import { flatMap, keys, noop } from 'lodash';
-import { Edit2, Eye, EyeOff, Link as LinkIcon, Trash } from 'react-feather';
+import { Edit2, Eye, EyeOff, Link as LinkIcon, Trash, UserPlus } from 'react-feather';
 
 import { ColorMapping, Friend, ModuleSelectList } from 'types/reducers';
 import { ModuleCode, Semester } from 'types/modules';
@@ -396,7 +396,14 @@ const FriendsPanel: FC<Props> = ({ semester, colors, horizontalOrientation }) =>
   const dispatch = useDispatch<Dispatch>();
   const friends = useSelector(({ friends: friendsState }: State) => friendsState.friends);
   const modules = useSelector(({ moduleBank }: State) => moduleBank.modules);
+  // The box for the name of a new friend is only shown after the Add friend button is clicked
+  const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAdding) nameInputRef.current?.focus();
+  }, [isAdding]);
 
   // Modules that are not in the user's own timetable can be dropped from the module bank to make
   // space, and friends' timetables are stored without the module data, so bring them back
@@ -412,6 +419,11 @@ const FriendsPanel: FC<Props> = ({ semester, colors, horizontalOrientation }) =>
     }
   }, [friends, modules, semester, dispatch]);
 
+  const closeAddFriend = useCallback(() => {
+    setIsAdding(false);
+    setName('');
+  }, []);
+
   const onAddFriend = useCallback(
     (evt: FormEvent) => {
       evt.preventDefault();
@@ -420,27 +432,47 @@ const FriendsPanel: FC<Props> = ({ semester, colors, horizontalOrientation }) =>
       if (!trimmedName) return;
 
       dispatch(addFriend(trimmedName));
-      setName('');
+      closeAddFriend();
     },
-    [name, dispatch],
+    [name, dispatch, closeAddFriend],
   );
 
   return (
     <div className={styles.friends}>
-      <form className={styles.addFriend} onSubmit={onAddFriend}>
-        <input
-          type="text"
-          className="form-control"
-          placeholder="Friend's name"
-          aria-label="Friend's name"
-          maxLength={30}
-          value={name}
-          onChange={(evt) => setName(evt.target.value)}
-        />
-        <button type="submit" className="btn btn-outline-primary" disabled={!name.trim()}>
-          Add friend
-        </button>
-      </form>
+      {isAdding ? (
+        <form className={styles.addFriend} onSubmit={onAddFriend}>
+          <input
+            ref={nameInputRef}
+            type="text"
+            className="form-control"
+            placeholder="Friend's name"
+            aria-label="Friend's name"
+            maxLength={30}
+            value={name}
+            onChange={(evt) => setName(evt.target.value)}
+            onKeyDown={(evt) => {
+              if (evt.key === 'Escape') closeAddFriend();
+            }}
+          />
+          <button type="submit" className="btn btn-outline-primary" disabled={!name.trim()}>
+            Add friend
+          </button>
+          <button type="button" className="btn btn-outline-secondary" onClick={closeAddFriend}>
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <div className={styles.addFriend}>
+          <button
+            type="button"
+            className="btn btn-outline-primary btn-svg"
+            onClick={() => setIsAdding(true)}
+          >
+            <UserPlus className="svg svg-small" />
+            Add friend
+          </button>
+        </div>
+      )}
 
       {!friends.length && (
         <p className="text-muted">

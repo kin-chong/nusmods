@@ -49,13 +49,74 @@ describe(FriendsPanel, () => {
     mockDomReset();
   });
 
-  test('should add a friend using the name that was typed in', async () => {
-    const store = make();
+  describe('adding a friend', () => {
+    const openAddFriend = () => userEvent.click(screen.getByRole('button', { name: 'Add friend' }));
 
-    await userEvent.type(screen.getByLabelText("Friend's name"), 'Alice{enter}');
+    test('should only show a button, and no box for the name, at first', () => {
+      make();
 
-    expect(getNames(store)).toEqual(['Alice']);
-    expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Add friend' })).toBeInTheDocument();
+      expect(screen.queryByLabelText("Friend's name")).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+    });
+
+    test('should show a box for the name when the button is clicked', async () => {
+      make();
+
+      await openAddFriend();
+
+      expect(screen.getByLabelText("Friend's name")).toHaveFocus();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    test('should add a friend using the name that was typed in, and hide the box again', async () => {
+      const store = make();
+
+      await openAddFriend();
+      await userEvent.type(screen.getByLabelText("Friend's name"), 'Alice{enter}');
+
+      expect(getNames(store)).toEqual(['Alice']);
+      expect(screen.getByRole('heading', { name: 'Alice' })).toBeInTheDocument();
+      expect(screen.queryByLabelText("Friend's name")).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Add friend' })).toBeInTheDocument();
+    });
+
+    test('should add a friend when the button next to the box is clicked', async () => {
+      const store = make();
+
+      await openAddFriend();
+      await userEvent.type(screen.getByLabelText("Friend's name"), 'Alice');
+      await userEvent.click(screen.getByRole('button', { name: 'Add friend' }));
+
+      expect(getNames(store)).toEqual(['Alice']);
+    });
+
+    test('should not add a friend without a name', async () => {
+      const store = make();
+
+      await openAddFriend();
+      expect(screen.getByRole('button', { name: 'Add friend' })).toBeDisabled();
+      await userEvent.type(screen.getByLabelText("Friend's name"), '   {enter}');
+
+      expect(getNames(store)).toEqual([]);
+      expect(screen.getByLabelText("Friend's name")).toBeInTheDocument();
+    });
+
+    test('should hide the box and forget the name when cancelled or Esc is pressed', async () => {
+      const store = make();
+
+      await openAddFriend();
+      await userEvent.type(screen.getByLabelText("Friend's name"), 'Alice');
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByLabelText("Friend's name")).not.toBeInTheDocument();
+
+      await openAddFriend();
+      expect(screen.getByLabelText("Friend's name")).toHaveValue('');
+      await userEvent.type(screen.getByLabelText("Friend's name"), 'Bob{escape}');
+      expect(screen.queryByLabelText("Friend's name")).not.toBeInTheDocument();
+
+      expect(getNames(store)).toEqual([]);
+    });
   });
 
   test('should rename a friend when Enter is pressed', async () => {
