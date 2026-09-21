@@ -2,12 +2,15 @@ import { render, screen } from '@testing-library/react';
 import { defaultLectureOption } from 'test-utils/optimiser';
 import OptimiserButton, { OptimiserButtonProps } from './OptimiserButton';
 
+const jest = vi;
 describe('OptimiserButton', () => {
   it('should be enabled when there are lesson options', () => {
     const props: OptimiserButtonProps = {
       isOptimising: false,
       lessonOptions: [defaultLectureOption],
       freeDayConflicts: [],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [],
       onClick: jest.fn(),
     };
     render(<OptimiserButton {...props} />);
@@ -19,6 +22,8 @@ describe('OptimiserButton', () => {
       isOptimising: false,
       lessonOptions: [],
       freeDayConflicts: [],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [],
       onClick: jest.fn(),
     };
     render(<OptimiserButton {...props} />);
@@ -30,6 +35,8 @@ describe('OptimiserButton', () => {
       isOptimising: true,
       lessonOptions: [defaultLectureOption],
       freeDayConflicts: [],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [],
       onClick: jest.fn(),
     };
     render(<OptimiserButton {...props} />);
@@ -48,6 +55,56 @@ describe('OptimiserButton', () => {
           days: [],
         },
       ],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [],
+      onClick: jest.fn(),
+    };
+    render(<OptimiserButton {...props} />);
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it('should be disabled when there are time range conflicts', () => {
+    const props: OptimiserButtonProps = {
+      isOptimising: false,
+      lessonOptions: [defaultLectureOption],
+      freeDayConflicts: [],
+      timeRangeConflicts: [
+        {
+          moduleCode: defaultLectureOption.moduleCode,
+          lessonType: defaultLectureOption.lessonType,
+          displayText: defaultLectureOption.displayText,
+          classNo: '1',
+        },
+      ],
+      pinnedClashConflicts: [],
+      onClick: jest.fn(),
+    };
+    render(<OptimiserButton {...props} />);
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it('should be disabled when there are pinned class clashes', () => {
+    const props: OptimiserButtonProps = {
+      isOptimising: false,
+      lessonOptions: [defaultLectureOption],
+      freeDayConflicts: [],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [
+        {
+          first: {
+            moduleCode: defaultLectureOption.moduleCode,
+            lessonType: defaultLectureOption.lessonType,
+            displayText: defaultLectureOption.displayText,
+            classNo: '1',
+          },
+          second: {
+            moduleCode: 'MA1521',
+            lessonType: 'Lecture',
+            displayText: 'MA1521 Lecture',
+            classNo: '2',
+          },
+        },
+      ],
       onClick: jest.fn(),
     };
     render(<OptimiserButton {...props} />);
@@ -59,6 +116,8 @@ describe('OptimiserButton', () => {
       isOptimising: true,
       lessonOptions: [defaultLectureOption],
       freeDayConflicts: [],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [],
       onClick: jest.fn(),
     };
     render(<OptimiserButton {...props} />);
@@ -70,6 +129,8 @@ describe('OptimiserButton', () => {
       isOptimising: false,
       lessonOptions: [defaultLectureOption],
       freeDayConflicts: [],
+      timeRangeConflicts: [],
+      pinnedClashConflicts: [],
       onClick: jest.fn(),
     };
     render(<OptimiserButton {...props} />);

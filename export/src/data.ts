@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import fs from 'fs-extra';
 import axios from 'axios';
 import _ from 'lodash';
@@ -7,6 +7,7 @@ import type { Middleware } from 'koa';
 
 import config from './config';
 import type { ExportData, State } from './types';
+import { makeModuleLessonMap } from './makeModuleLessonMap';
 
 async function fetchModule(moduleCode: string) {
   const fileName = `${moduleCode}.json`;
@@ -18,7 +19,9 @@ async function fetchModule(moduleCode: string) {
       mod = await fs.readJSON(path.join(config.moduleData, fileName));
     } catch (error) {
       // Continue if file is not found
-      if (error.code !== 'ENOENT') throw error;
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
     }
   }
 
@@ -33,9 +36,22 @@ async function fetchModule(moduleCode: string) {
   return mod;
 }
 
-export async function getModules(moduleCodes: string[]) {
+export async function getModules(moduleCodes: Array<string>) {
   const modules = await Promise.all(
-    moduleCodes.map((moduleCode) => fetchModule(moduleCode).catch(() => null)),
+    moduleCodes.map(async (moduleCode) =>
+      // Not in use currently, refer to https://github.com/nusmodifications/nusmods/discussions/4387
+      fetchModule(moduleCode)
+        .then((module) => {
+          return {
+            ...module,
+            semesterData: _.map(module.semesterData, (semesterData) => ({
+              ...semesterData,
+              lessonMap: makeModuleLessonMap(semesterData.timetable),
+            })),
+          };
+        })
+        .catch(() => null),
+    ),
   );
 
   return modules.filter(Boolean);
@@ -50,8 +66,8 @@ export const parseExportData: Middleware<State> = (ctx, next) => {
       const data = JSON.parse(ctx.query.data);
       validateExportData(data);
       ctx.state.data = data;
-    } catch (e) {
-      ctx.throw(422, 'Invalid timetable data', { original: e });
+    } catch (error) {
+      ctx.throw(422, 'Invalid timetable data', { original: error });
     }
   }
 
@@ -59,16 +75,18 @@ export const parseExportData: Middleware<State> = (ctx, next) => {
 };
 
 export function validateExportData(data: ExportData) {
-  if (!_.isObject(data)) throw new Error('data should be an object');
+  if (!_.isObject(data)) {
+    throw new Error('data should be an object');
+  }
 
   /**
    * type ModuleLessonConfig = {
-   *   [lessonType: LessonType]: LessonIndex[];
+   *   [lessonType: LessonType]: LessonId[];
    * };
    */
   const moduleLessonConfigSchema = Joi.object().pattern(
     Joi.string(),
-    Joi.array().items(Joi.number().integer().min(0)),
+    Joi.array().items(Joi.string()),
   );
 
   /**
@@ -81,19 +99,19 @@ export function validateExportData(data: ExportData) {
   const taModulesConfigSchema = Joi.array().items(Joi.string());
   const themeSchema = Joi.object({
     id: Joi.string(),
-    timetableOrientation: Joi.string().valid('HORIZONTAL', 'VERTICAL'),
     showTitle: Joi.boolean(),
+    timetableOrientation: Joi.string().valid('HORIZONTAL', 'VERTICAL'),
   });
   const pageDataSchema = Joi.object({
-    semester: Joi.number().integer().greater(0).less(5),
-    timetable: timetableSchema,
     colors: Joi.object().pattern(Joi.string(), Joi.number().integer().min(0)),
     hidden: Joi.array().items(Joi.string()),
-    ta: taModulesConfigSchema,
+    semester: Joi.number().integer().greater(0).less(5),
     settings: Joi.object({
       colorScheme: Joi.string().valid('LIGHT_COLOR_SCHEME', 'DARK_COLOR_SCHEME'),
     }),
+    ta: taModulesConfigSchema,
     theme: themeSchema,
+    timetable: timetableSchema,
   });
 
   const result = pageDataSchema.validate(data, { allowUnknown: true });

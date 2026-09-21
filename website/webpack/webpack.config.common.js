@@ -20,8 +20,8 @@ const commonConfig = {
     },
     // Importing modules from these files will not require the extension.
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
-    // We don't use symlinks, so disable for performance
-    symlinks: false,
+    // pnpm uses symlinks for node_modules, so this must be true
+    symlinks: true,
   },
 
   entry: 'entry/main',
@@ -49,6 +49,7 @@ const commonConfig = {
       VERSION_STR: JSON.stringify(parts.appVersion().versionStr),
       DEBUG_SERVICE_WORKER: !!process.env.DEBUG_SERVICE_WORKER,
       DATA_API_BASE_URL: JSON.stringify(process.env.DATA_API_BASE_URL),
+      OPTIMISER_API_URL: JSON.stringify(process.env.OPTIMISER_API_URL || '/api/optimiser/optimise'),
     }),
   ],
 

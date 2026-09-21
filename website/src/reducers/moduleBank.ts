@@ -1,5 +1,5 @@
 import { produce, Draft } from 'immer';
-import { keyBy, map, omit, size, zipObject } from 'lodash';
+import { keyBy, map, omit, size, zipObject } from 'lodash-es';
 
 import { createMigrate, REHYDRATE } from 'redux-persist';
 import type { Actions } from 'types/actions';
@@ -15,6 +15,7 @@ import {
   SET_EXPORTED_DATA,
 } from 'actions/constants';
 import { SUCCESS_KEY } from 'middlewares/requests-middleware';
+import { makeModuleLessonMap } from 'utils/timetables';
 
 const defaultModuleBankState: ModuleBank = {
   moduleList: [], // List of basic modules data (module code, name, semester)
@@ -54,10 +55,7 @@ function moduleBank(state: ModuleBank = defaultModuleBankState, action: Actions)
             timestamp: Date.now(),
             semesterData: map(action.payload.semesterData, (semesterData) => ({
               ...semesterData,
-              timetable: map(semesterData.timetable, (lesson, lessonIndex) => ({
-                ...lesson,
-                lessonIndex,
-              })),
+              lessonMap: makeModuleLessonMap(semesterData.timetable),
             })),
           },
         },

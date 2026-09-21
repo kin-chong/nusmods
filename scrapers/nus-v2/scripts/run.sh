@@ -13,18 +13,16 @@ echo "Running on Node version: $(node --version)"
 
 # Build the scraper
 rm -rf build
-yarn build
+pnpm build
 
 # Run the scraper
 echo "Running scraper"
 node build/index.js all
 
 # Update docs
-yarn docs
+pnpm docs
 
-# Sync with live data
-echo "Syncing data"
-rsync -ahz --delete-after --exclude='cache/' --exclude='mpeModules.json' --exclude='cpexModules.json' data/ ../../../api.nusmods.com/v2
+# Syncing with live data is done via symlink, no need to copy or rsync
 
 # pm2 doesn't restart processes that have stopped, so this just noops until
 # the next cron restart

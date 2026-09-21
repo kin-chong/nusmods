@@ -14,27 +14,54 @@ export type LessonTime = StartTime | EndTime;
 export type ModuleCode = string; // E.g. "CS3216"
 export type ModuleTitle = string;
 export type Semester = number; // E.g. 1/2/3/4. 3 and 4 means special sem i and ii.
-export type Workload = string | number[];
+export type Workload = string | Array<number>;
 export type Venue = string;
 
 export type WeekRange = {
+  end: string;
   // The start and end dates
   start: string;
-  end: string;
   // Number of weeks between each lesson. If not specified one week is assumed
   // ie. there are lessons every week
   weekInterval?: number;
   // Week numbers for modules with uneven spacing between lessons. The first
   // occurrence is on week 1
-  weeks?: number[];
+  weeks?: Array<number>;
 };
 
-export type Weeks = number[] | WeekRange;
+export type Weeks = Array<number> | WeekRange;
+
+// Whether a cohort condition includes (IF_IN/MUST_BE_IN) or excludes
+// (IF_NOT_IN/MUST_NOT_BE_IN) the listed cohort years.
+export type CohortRule = 'IF_IN' | 'IF_NOT_IN' | 'MUST_BE_IN' | 'MUST_NOT_BE_IN';
+
+// A cohort-year predicate that gates a subtree. `years` holds the raw YEARS
+// tokens, each prefixed by a bound: "S:" = start/from (inclusive), "E:" =
+// end/until (inclusive). The year part may be a calendar year ("2022") or an
+// academic year ("2019/20"). Two tokens form a closed range.
+export type CohortCondition = { rule: CohortRule; years: Array<string> };
+
+// Whether a program-type condition includes (IF_IN) or requires (MUST_BE_IN)
+// the listed program types. NUS only emits these two for PROGRAM_TYPES.
+export type ProgramTypeRule = 'IF_IN' | 'MUST_BE_IN';
+
+// A program-type predicate that gates a subtree, e.g. ["Undergraduate Degree"]
+// or ["Graduate Degree Coursework", "Graduate Degree Research"]. The planner
+// has no program-type input, so this is carried for display only.
+export type ProgramTypeCondition = { rule: ProgramTypeRule; types: Array<string> };
 
 // Recursive tree of module codes and boolean operators for the prereq tree
 export type PrereqTree =
   | string
-  | { and?: PrereqTree[]; or?: PrereqTree[]; nOf?: [number, PrereqTree[]] };
+  | { and?: Array<PrereqTree>; nOf?: [number, Array<PrereqTree>]; or?: Array<PrereqTree> }
+  // A cohort predicate. With `then`, it gates that requirement to the matching
+  // cohorts; without `then`, it is a bare eligibility constraint (the student
+  // must be in the cohort to take the module).
+  | { cohort: CohortCondition; then?: PrereqTree }
+  // A program-type-gated requirement: the requirement only applies to students
+  // in the matching program type(s). Carried for display; not evaluated by the
+  // planner (which has no program-type input).
+  | { programType: ProgramTypeCondition; then: PrereqTree };
 
 // Auxiliary data types
 export type Day =
@@ -46,7 +73,7 @@ export type Day =
   | 'Saturday'
   | 'Sunday';
 
-export const WorkingDaysOfWeek: Day[] = [
+export const WorkingDaysOfWeek: Array<Day> = [
   'Monday',
   'Tuesday',
   'Wednesday',
@@ -55,10 +82,10 @@ export const WorkingDaysOfWeek: Day[] = [
   'Saturday',
 ];
 
-export const DaysOfWeek: Day[] = [...WorkingDaysOfWeek, 'Sunday'];
+export const DaysOfWeek: Array<Day> = [...WorkingDaysOfWeek, 'Sunday'];
 
 export type Time = 'Morning' | 'Afternoon' | 'Evening';
-export const TimesOfDay: Time[] = ['Morning', 'Afternoon', 'Evening'];
+export const TimesOfDay: Array<Time> = ['Morning', 'Afternoon', 'Evening'];
 
 export type ModuleLevel = 1 | 2 | 3 | 4 | 5 | 6 | 8;
 export const Semesters = [1, 2, 3, 4];
@@ -69,84 +96,84 @@ export type WorkloadComponent = 'Lecture' | 'Tutorial' | 'Laboratory' | 'Project
 // Usually ModuleCode and ModuleTitle has to be injected in before using in the timetable.
 export type RawLesson = Readonly<{
   classNo: ClassNo;
+  covidZone: CovidZoneId;
   day: DayText;
   endTime: EndTime;
   lessonType: LessonType;
+  size: number;
   startTime: StartTime;
   venue: Venue;
   weeks: Weeks;
-  size: number;
-  covidZone: CovidZoneId;
 }>;
 
 // Semester-specific information of a module.
 export type SemesterData = {
-  semester: Semester;
-  timetable: RawLesson[];
-
   // Aggregated from timetable
-  covidZones: CovidZoneId[];
-
+  covidZones: Array<CovidZoneId>;
   // Exam
   examDate?: string;
+
   examDuration?: number;
+
+  semester: Semester;
+  timetable: Array<RawLesson>;
 };
 
 export type NUSModuleAttributes = Partial<{
-  year: boolean; // Year long
-  su: boolean; // Can S/U (undergraduate)
-  grsu: boolean; // Can S/U (graduate)
-  ssgf: boolean; // SkillsFuture Funded
-  sfs: boolean; // SkillsFuture series
-  lab: boolean; // Lab based
-  ism: boolean; // Independent study
-  urop: boolean; // Undergraduate Research Opportunities Program
   fyp: boolean; // Honours / Final Year Project
+  grsu: boolean; // Can S/U (graduate)
+  ism: boolean; // Independent study
+  lab: boolean; // Lab based
   mpes1: boolean; // Included in Semester 1's Module Planning Exercise
   mpes2: boolean; // Included in Semester 2's Module Planning Exercise
+  sfs: boolean; // SkillsFuture series
+  ssgf: boolean; // SkillsFuture Funded
+  su: boolean; // Can S/U (undergraduate)
+  urop: boolean; // Undergraduate Research Opportunities Program
+  year: boolean; // Year long
 }>;
 
 // Information for a module for a particular academic year.
 export type Module = {
   acadYear: AcadYear;
 
-  // Basic info
-  moduleCode: ModuleCode;
-  title: ModuleTitle;
-
-  // Additional info
-  description?: string;
-  moduleCredit: string;
-  department: Department;
-  faculty: Faculty;
-  workload?: Workload;
-  aliases?: ModuleCode[];
-  attributes?: NUSModuleAttributes;
-  gradingBasisDescription?: string;
   additionalInformation?: string;
+  aliases?: Array<ModuleCode>;
 
-  // Requsites
-  prerequisite?: string;
-  prerequisiteRule?: string;
-  prerequisiteAdvisory?: string;
+  attributes?: NUSModuleAttributes;
   corequisite?: string;
   corequisiteRule?: string;
+  department: Department;
+  // Additional info
+  description?: string;
+  faculty: Faculty;
+  fulfillRequirements?: Array<ModuleCode>;
+  gradingBasisDescription?: string;
+  // Basic info
+  moduleCode: ModuleCode;
+
+  moduleCredit: string;
   preclusion?: string;
   preclusionRule?: string;
-
-  // Semester data
-  semesterData: SemesterData[];
-
   // Requisite tree
   prereqTree?: PrereqTree;
-  fulfillRequirements?: ModuleCode[];
+  // Requsites
+  prerequisite?: string;
+  prerequisiteAdvisory?: string;
+  prerequisiteRule?: string;
+
+  // Semester data
+  semesterData: Array<SemesterData>;
+
+  title: ModuleTitle;
+  workload?: Workload;
 };
 
 // This format is returned from the module list endpoint.
 export type ModuleCondensed = Readonly<{
   moduleCode: ModuleCode;
+  semesters: Array<number>;
   title: ModuleTitle;
-  semesters: number[];
 }>;
 
 // This format is returned from the module information endpoint
@@ -156,30 +183,30 @@ export type SemesterDataCondensed = Readonly<
 >;
 
 export type ModuleInformation = Readonly<{
-  // Basic info
-  moduleCode: ModuleCode;
-  title: ModuleTitle;
+  attributes?: NUSModuleAttributes;
+  corequisite?: string;
 
+  department: Department;
   // Additional info
   description?: string;
-  moduleCredit: string;
-  department: Department;
   faculty: Faculty;
-  workload?: Workload;
-  attributes?: NUSModuleAttributes;
   gradingBasisDescription?: string;
+  // Basic info
+  moduleCode: ModuleCode;
+  moduleCredit: string;
+  preclusion?: string;
 
   // Requsites
   prerequisite?: string;
-  corequisite?: string;
-  preclusion?: string;
-
   // Condensed semester info
-  semesterData: SemesterDataCondensed[];
+  semesterData: Array<SemesterDataCondensed>;
+  title: ModuleTitle;
+
+  workload?: Workload;
 
   // Requisite tree is not returned to save space
 }>;
 
 export type Aliases = {
-  [moduleCode: string]: ModuleCode[];
+  [moduleCode: string]: Array<ModuleCode>;
 };

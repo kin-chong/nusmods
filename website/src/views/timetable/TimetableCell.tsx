@@ -1,6 +1,6 @@
 import * as React from 'react';
 import classnames from 'classnames';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 import { addWeeks, format, parseISO } from 'date-fns';
 import NUSModerator, { AcadWeekInfo } from 'nusmoderator';
 
@@ -33,6 +33,9 @@ type Props = {
 
 const lessonDateFormat = 'MMM dd';
 
+const mountToReferenceRoot = (ref: Element): Element =>
+  ref.ownerDocument.body ?? ref.ownerDocument.documentElement ?? ref;
+
 function formatWeekInfo(weekInfo: AcadWeekInfo) {
   if (weekInfo.type === 'Instructional') return `Week ${weekInfo.num}`;
   return weekInfo.type;
@@ -59,7 +62,7 @@ function checkHover(
 
   if (!lesson.isTaInTimetable && lesson.classNo === hoverLesson.classNo) return true;
 
-  if (lesson.isTaInTimetable && lesson.lessonIndex === hoverLesson.lessonIndex) return true;
+  if (lesson.isTaInTimetable && lesson.lessonId === hoverLesson.lessonId) return true;
 
   return false;
 }
@@ -103,7 +106,7 @@ function formatWeekRange(weekRange: WeekRange) {
   );
 
   return (
-    <Tooltip content={table} interactive arrow>
+    <Tooltip content={table} interactive arrow appendTo={mountToReferenceRoot}>
       <span className={styles.weeksSpecial}>{dateRange}</span>
     </Tooltip>
   );

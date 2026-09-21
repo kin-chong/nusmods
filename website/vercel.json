@@ -1,4 +1,6 @@
 {
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "timeout --kill-after=30s 5m pnpm build",
   "functions": {
     "api/**/*.ts": {
       "excludeFiles": "./tsconfig.json",
@@ -39,8 +41,8 @@
   ],
   "rewrites": [
     {
-      "source": "/api(/.*)?",
-      "destination": "https://api.nusmods.com$1"
+      "source": "/api/:path*",
+      "destination": "https://api.nusmods.com/:path*"
     }
   ],
   "redirects": [
@@ -49,5 +51,6 @@
       "destination": "https://blog.nusmods.com$1",
       "permanent": false
     }
-  ]
+  ],
+  "ignoreCommand": "bash ../vercel_ignore_build.sh"
 }

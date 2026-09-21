@@ -5,11 +5,11 @@ import CN4205ETimetable from './fixtures/api-timetable/CN4205E.json';
 import CS1010XTimetable from './fixtures/api-timetable/CS1010X.json';
 import RE5001Timetable from './fixtures/api-timetable/RE5001.json';
 
-import GetSemesterTimetable, { transformModgrpToClassNo } from './GetSemesterTimetable';
+import GetSemesterTimetable, { mapLessonWeeks, transformModgrpToClassNo } from './GetSemesterTimetable';
 import { TimetableLesson } from '../types/api';
 import { Semester } from '../types/modules';
 
-jest.mock('../services/io/elastic');
+vi.mock('../services/io/elastic');
 
 describe(transformModgrpToClassNo, () => {
   test('should remove activity string prefix from mod group', () => {
@@ -33,10 +33,10 @@ describe(transformModgrpToClassNo, () => {
 });
 
 describe(GetSemesterTimetable, () => {
-  function createTask(lessons: TimetableLesson[], semester: Semester = 1) {
+  function createTask(lessons: Array<TimetableLesson>, semester: Semester = 1) {
     const task = new GetSemesterTimetable(semester, '2018/2019');
 
-    task.api.getSemesterTimetables = jest.fn((term, consumer) => {
+    task.api.getSemesterTimetables = vi.fn((term, consumer) => {
       lessons.forEach((lesson) => consumer(lesson));
       return Promise.resolve();
     });
@@ -1508,7 +1508,7 @@ describe(GetSemesterTimetable, () => {
 
   // CS1010X has lessons extending outside the normal semester week range
   test('should map CS1010X timetable lessons correctly', async () => {
-    const task = createTask(CS1010XTimetable as TimetableLesson[]);
+    const task = createTask(CS1010XTimetable as Array<TimetableLesson>);
     const output = await task.run();
 
     expect(output).toMatchInlineSnapshot(`
@@ -1685,5 +1685,21 @@ describe(GetSemesterTimetable, () => {
         ],
       }
     `);
+  });
+
+  test('should ignore duplicate lesson dates when mapping weeks', () => {
+    const logger = { error: vi.fn() };
+
+    const weeks = mapLessonWeeks(
+      ['2026-08-03', '2026-08-03', '2026-08-03'],
+      1,
+      logger as any,
+    );
+
+    expect(logger.error).toHaveBeenCalledWith('Lesson has duplicate dates');
+    expect(weeks).toEqual({
+      end: '2026-08-03',
+      start: '2026-08-03',
+    });
   });
 });

@@ -6,9 +6,15 @@ import {
   ModuleAliases,
   ModuleWithoutTree,
   SemesterModule,
-  SemesterModuleData,
+  SemesterModuleBatch,
 } from '../types/mapper';
-import { Module, ModuleCode, ModuleCondensed, ModuleInformation } from '../types/modules';
+import {
+  Module,
+  ModuleCode,
+  ModuleCondensed,
+  ModuleInformation,
+  SemesterData,
+} from '../types/modules';
 import type { MPEModule } from '../types/mpe';
 
 import BaseTask from './BaseTask';
@@ -20,25 +26,28 @@ import { isModuleOffered } from '../utils/data';
 import { isModuleInMPE } from '../utils/mpe';
 
 interface Input {
-  semesterData: SemesterModuleData[][];
-  aliases: ModuleAliases[];
+  aliases: Array<ModuleAliases>;
+  preserveModuleInfoSemesters?: ReadonlySet<number>;
+  semesterData: Array<SemesterModuleBatch>;
 }
-type Output = Module[];
+type Output = Array<Module>;
 
 /**
  * Merge aliases and convert set to array
  */
-export function mergeAliases(aliases: ModuleAliases[]): { [moduleCode: string]: ModuleCode[] } {
+export function mergeAliases(aliases: Array<ModuleAliases>): {
+  [moduleCode: string]: Array<ModuleCode>;
+} {
   // This version of the function cannot be expressed in TypeScript, so we just cast it to any
-  /* eslint-disable consistent-return, @typescript-eslint/ban-types */
-  const merged: ModuleAliases = (mergeWith as Function)(
+  const merged: ModuleAliases = (mergeWith as (...args: Array<unknown>) => ModuleAliases)(
     ...aliases,
     (src: Set<ModuleCode> | undefined, dest: Set<ModuleCode> | undefined) => {
-      if (src && dest) return union(src, dest);
+      if (src && dest) {
+        return union(src, dest);
+      }
       // Returning void causes mergeWith to use the original merge
     },
   );
-  /* eslint-enable */
 
   // Convert the set to an array to make it easier to output since JSON doesn't
   // encode Sets by default
@@ -59,10 +68,12 @@ export function moduleDataCheck(
   module: ModuleWithoutTree,
   semesterModule: SemesterModule,
 ): { left: unknown; right: unknown } | null {
-  const { semesterData, aliases, ...existing } = module;
+  const { aliases, semesterData, ...existing } = module;
 
   const difference = diff(existing, semesterModule);
-  if (!difference) return null;
+  if (!difference) {
+    return null;
+  }
 
   const keys = difference.map((edit): string => edit.path && edit.path[0]);
   return {
@@ -71,18 +82,41 @@ export function moduleDataCheck(
   };
 }
 
+export function upsertSemesterData(
+  semesterData: Array<SemesterData>,
+  incoming: SemesterData,
+): Array<SemesterData> {
+  return [...semesterData.filter((data) => data.semester !== incoming.semester), incoming].sort(
+    (left, right) => left.semester - right.semester,
+  );
+}
+
+type CombineModulesOptions = {
+  preserveModuleInfoSemesters?: ReadonlySet<number>;
+};
+
 /**
  * Combine modules from multiple semesters into one
  */
 export function combineModules(
-  semesters: SemesterModuleData[][],
-  aliases: { [moduleCode: string]: ModuleCode[] },
+  semesters: Array<SemesterModuleBatch>,
+  aliases: { [moduleCode: string]: Array<ModuleCode> },
   logger: Logger,
-): ModuleWithoutTree[] {
+  options: CombineModulesOptions = {},
+): Array<ModuleWithoutTree> {
+  const { preserveModuleInfoSemesters } = options;
   const modules: { [moduleCode: string]: ModuleWithoutTree } = {};
 
-  // 1. Iterate over each module
-  for (const semesterModules of semesters) {
+  // 1. Iterate over each semester's batch of modules
+  for (const { modules: semesterModules, semester } of semesters) {
+    // When a semester's data is sourced from a previous academic year (the
+    // special-term fallback during an AY migration), its module info must not
+    // override the current year's. The batch carries its semester explicitly, so
+    // this holds for every module in it - including modules that exist in the
+    // catalog but are not offered this semester (and therefore have no timetable,
+    // and no semester of their own to infer from).
+    const isPreservedSemester = preserveModuleInfoSemesters?.has(semester) ?? false;
+
     for (const semesterModule of semesterModules) {
       const { moduleCode, semesterData } = semesterModule;
 
@@ -103,9 +137,24 @@ export function combineModules(
           logger.warn(difference, 'Module with different module info between semesters');
         }
 
-        // 4. Always use the latest semester's data. In case the two semester's data
-        //    diverge we trust the latest semester's data to be canonical as most
-        //    changes are additive, eg. adding more prereq options
+        // 4. For preserved semesters (previous-AY special terms), keep the existing
+        //    current-year module info and only merge in this semester's timetable,
+        //    if the module is actually offered. This applies to every module in the
+        //    batch, including those with no timetable this semester.
+        if (isPreservedSemester) {
+          modules[moduleCode] = {
+            ...existingData,
+            aliases: aliases[moduleCode] ?? existingData.aliases,
+            semesterData: semesterData
+              ? upsertSemesterData(existingData.semesterData, semesterData)
+              : existingData.semesterData,
+          };
+          continue;
+        }
+
+        // 5. Otherwise always use the latest semester's data. In case the two
+        //    semesters' data diverge we trust the latest semester's data to be
+        //    canonical as most changes are additive, eg. adding more prereq options
         module.semesterData.unshift(...existingData.semesterData);
       }
 
@@ -118,61 +167,61 @@ export function combineModules(
 
 const getModuleCondensed = ({
   moduleCode,
-  title,
   semesterData,
+  title,
 }: ModuleWithoutTree): ModuleCondensed => ({
   moduleCode,
-  title,
   semesters: semesterData.map((semester) => semester.semester),
+  title,
 });
 
 const getModuleMPEParticipation = ({
-  title,
-  moduleCode,
-  moduleCredit,
   attributes,
-}: ModuleWithoutTree): MPEModule => ({
-  title,
   moduleCode,
   moduleCredit,
+  title,
+}: ModuleWithoutTree): MPEModule => ({
   inS1CPEx: attributes?.mpes1,
   inS2CPEx: attributes?.mpes2,
+  moduleCode,
+  moduleCredit,
+  title,
 });
 
 // Avoid using _.pick here because it is not type safe
 const getModuleInfo = ({
-  moduleCode,
-  title,
-  description,
-  moduleCredit,
-  department,
-  faculty,
-  workload,
-  prerequisite,
-  preclusion,
+  attributes,
   corequisite,
+  department,
+  description,
+  faculty,
+  gradingBasisDescription,
+  moduleCode,
+  moduleCredit,
+  preclusion,
+  prerequisite,
   semesterData,
-  attributes,
-  gradingBasisDescription,
-}: ModuleWithoutTree): ModuleInformation => ({
-  moduleCode,
   title,
-  description,
-  moduleCredit,
-  department,
-  faculty,
   workload,
-  prerequisite,
-  preclusion,
-  corequisite,
+}: ModuleWithoutTree): ModuleInformation => ({
   attributes,
+  corequisite,
+  department,
+  description,
+  faculty,
   gradingBasisDescription,
-  semesterData: semesterData.map(({ semester, examDate, examDuration, covidZones }) => ({
-    semester,
+  moduleCode,
+  moduleCredit,
+  preclusion,
+  prerequisite,
+  semesterData: semesterData.map(({ covidZones, examDate, examDuration, semester }) => ({
+    covidZones,
     examDate,
     examDuration,
-    covidZones,
+    semester,
   })),
+  title,
+  workload,
 });
 
 /**
@@ -204,16 +253,17 @@ export default class CollateModules extends BaseTask implements Task<Input, Outp
   async run(input: Input) {
     this.logger.info(`Collating modules for ${this.academicYear}`);
 
-    const { semesterData, aliases } = input;
+    const { aliases, preserveModuleInfoSemesters, semesterData } = input;
     const combinedAliases = mergeAliases(aliases);
-    const modulesWithoutTree: ModuleWithoutTree[] = combineModules(
+    const modulesWithoutTree: Array<ModuleWithoutTree> = combineModules(
       semesterData,
       combinedAliases,
       this.logger,
+      { preserveModuleInfoSemesters },
     );
 
     // Insert prerequisite trees into the modules and order them by module code
-    const unsortedModules: Module[] = await generatePrereqTree(modulesWithoutTree);
+    const unsortedModules: Array<Module> = await generatePrereqTree(modulesWithoutTree);
     const modules = sortBy(unsortedModules, (module) => module.moduleCode);
 
     this.logger.info(`Collated ${modules.length} modules`);

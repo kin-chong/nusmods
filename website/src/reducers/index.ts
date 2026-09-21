@@ -1,6 +1,9 @@
+import { Reducer } from 'redux';
+
 import { REMOVE_MODULE, SET_TIMETABLE } from 'actions/timetables';
 
 import persistReducer from 'storage/persistReducer';
+import { withReduxStateSync, receiveState } from 'middlewares/state-sync-middleware';
 import { State } from 'types/state';
 import { Actions } from 'types/actions';
 
@@ -35,7 +38,7 @@ const undoReducer = createUndoReducer<State>({
   storedKeyPaths: ['timetables', 'theme.colors'],
 });
 
-export default function reducers(state: State = defaultState, action: Actions): State {
+function reducers(state: State = defaultState, action: Actions): State {
   // Update every reducer except the undo reducer
   const newState: State = {
     moduleBank: moduleBank(state.moduleBank, action),
@@ -51,3 +54,11 @@ export default function reducers(state: State = defaultState, action: Actions): 
   };
   return undoReducer(state, newState, action);
 }
+
+// withReduxStateSync intercepts RECEIVE_INIT_STATE (from initStateWithPrevTab)
+// and adopts the peer tab's state, including non-persisted slices like
+// undoHistory so undo/redo stay in sync across tabs.
+export default withReduxStateSync(
+  reducers as unknown as Reducer<State>,
+  receiveState,
+) as unknown as Reducer<State, Actions>;

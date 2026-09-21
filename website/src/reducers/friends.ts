@@ -1,5 +1,6 @@
-import { omit, uniq, without } from 'lodash';
+import { difference, omit, uniq, without } from 'lodash-es';
 
+import { LessonId } from 'types/modules';
 import { Friend, FriendsState } from 'types/reducers';
 import { PersistConfig } from 'storage/persistReducer';
 import { Actions } from 'types/actions';
@@ -134,17 +135,18 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
 
     case ADD_FRIEND_LESSON:
     case REMOVE_FRIEND_LESSON: {
-      const { friendId, semester, moduleCode, lessonType, lessonIndices } = action.payload;
+      const { friendId, semester, moduleCode, lessonType, lessonIds } = action.payload;
 
       return updateFriend(state, friendId, (friend) => {
         const lessonConfig = friend.timetable[semester]?.[moduleCode];
         if (!lessonConfig) return friend;
 
-        const current = lessonConfig[lessonType] ?? [];
+        // The lessons of a TA are stored as their ids
+        const current = (lessonConfig[lessonType] ?? []) as LessonId[];
         const updated =
           action.type === ADD_FRIEND_LESSON
-            ? uniq([...lessonIndices, ...current])
-            : without(current, ...lessonIndices);
+            ? uniq([...lessonIds, ...current])
+            : difference(current, lessonIds);
 
         return {
           ...friend,
@@ -160,10 +162,14 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
     }
 
     case ADD_FRIEND_TA_MODULE: {
-      const { friendId, semester, moduleCode } = action.payload;
+      const { friendId, semester, moduleCode, lessonConfig } = action.payload;
 
       return updateFriend(state, friendId, (friend) => ({
         ...friend,
+        timetable: {
+          ...friend.timetable,
+          [semester]: { ...friend.timetable[semester], [moduleCode]: lessonConfig },
+        },
         ta: { ...friend.ta, [semester]: uniq([...(friend.ta?.[semester] ?? []), moduleCode]) },
       }));
     }

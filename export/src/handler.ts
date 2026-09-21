@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 import type { VercelApiHandler, VercelRequest, VercelResponse } from '@vercel/node';
-import type { Page } from 'puppeteer-core';
+import type { Browser, Page } from 'puppeteer-core';
 
 import * as render from './render-serverless';
 import config from './config';
@@ -50,38 +50,40 @@ export function makeExportHandler<T>(
       let data = undefined;
       try {
         data = parseExportData(request);
-      } catch (e) {
-        throw new HttpError(422, 'Invalid timetable data', e);
+      } catch (error) {
+        throw new HttpError(422, 'Invalid timetable data', error);
       }
 
       // Prepare browser for export
       const url = config.page;
+      let browser: Browser;
       let page: Page;
       try {
-        page = await render.open(url);
-      } catch (e) {
-        if (e.message.includes('ERR_CONNECTION_REFUSED')) {
+        ({ browser, page } = await render.open(url));
+      } catch (error) {
+        if (error.message.includes('ERR_CONNECTION_REFUSED')) {
           throw new HttpError(
             500,
             `Could not open the page located at process.env.PAGE (${url}). Try opening it in your browser?`,
-            e,
+            error,
           );
         }
-        throw new HttpError(500, 'Cannot start browser', e);
+        throw new HttpError(500, 'Cannot start browser', error);
       }
 
-      // Export
-      await performExport(response, page, data);
+      try {
+        // Export
+        await performExport(response, page, data);
+      } finally {
+        await browser.close();
+      }
+    } catch (error) {
+      const eventId = Sentry.captureException(error.original || error);
 
-      // Cleanup
-      await page.close();
-    } catch (e) {
-      const eventId = Sentry.captureException(e.original || e);
+      console.error(error);
 
-      console.error(e);
-
-      if (e instanceof HttpError) {
-        if (e.code === 422) {
+      if (error instanceof HttpError) {
+        if (error.code === 422) {
           response.status(422).send(render422());
           return;
         }

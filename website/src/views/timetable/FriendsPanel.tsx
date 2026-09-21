@@ -2,7 +2,7 @@ import { FC, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useS
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import classnames from 'classnames';
-import { flatMap, keys, noop } from 'lodash';
+import { flatMap, keys, noop } from 'lodash-es';
 import {
   Book,
   BookOpen,
@@ -22,8 +22,9 @@ import { State } from 'types/state';
 import {
   addFriend,
   addFriendModule,
-  addFriendTaModule,
   disableFriendTaModule,
+  enableFriendTaModule,
+  migrateFriendsTimetables,
   removeFriend,
   removeFriendModule,
   renameFriend,
@@ -115,7 +116,7 @@ const FriendModule: FC<FriendModuleProps> = ({
                   dispatch(
                     isTa
                       ? disableFriendTaModule(friend.id, semester, moduleCode)
-                      : addFriendTaModule(friend.id, semester, moduleCode),
+                      : enableFriendTaModule(friend.id, semester, moduleCode),
                   )
                 }
               >
@@ -462,6 +463,12 @@ const FriendsPanel: FC<Props> = ({ semester, colors, horizontalOrientation }) =>
     if (missing.size) {
       dispatch(fetchModules(missing)).catch(noop);
     }
+  }, [friends, modules, semester, dispatch]);
+
+  // Friends that an older version saved are changed to how they are stored now, which needs the
+  // data of their courses to be there, so this is tried again as the courses are loaded
+  useEffect(() => {
+    dispatch(migrateFriendsTimetables(semester));
   }, [friends, modules, semester, dispatch]);
 
   const closeAddFriend = useCallback(() => {

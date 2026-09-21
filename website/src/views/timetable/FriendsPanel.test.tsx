@@ -1,10 +1,14 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios, { AxiosHeaders } from 'axios';
-import { mapValues } from 'lodash';
+import { keys, mapValues, pickBy } from 'lodash-es';
 import { Provider } from 'react-redux';
 import { applyMiddleware, createStore } from 'redux';
 import thunk from 'redux-thunk';
+import type { MockInstance } from 'vitest';
+
+import type { ClassNo } from 'types/modules';
+import type { ModuleLessonConfig } from 'types/timetables';
 
 import { FETCH_MODULE_LIST } from 'actions/constants';
 import { addFriend, addFriendTaModule, setFriendModule } from 'actions/friends';
@@ -12,8 +16,7 @@ import requestsMiddleware, { SUCCESS_KEY } from 'middlewares/requests-middleware
 import reducers from 'reducers';
 import { mockDom, mockDomReset } from 'test-utils/mockDom';
 import renderWithRouterMatch from 'test-utils/renderWithRouterMatch';
-import { getModuleTimetable } from 'utils/modules';
-import { makeLessonIndicesMap } from 'utils/timetables';
+import { getModuleLessonMap } from 'utils/modules';
 import { timetableShare } from 'views/routes/paths';
 
 import { CS4243 } from '__mocks__/modules';
@@ -39,7 +42,7 @@ function make(...friendNames: string[]) {
 
 // Modules are fetched from the mock data instead of the API, and every module is CS4243
 function mockCs4243Api() {
-  const mockAxiosRequest = jest.spyOn(axios, 'request');
+  const mockAxiosRequest = vi.spyOn(axios, 'request');
   mockAxiosRequest.mockResolvedValue({
     data: CS4243,
     status: 200,
@@ -198,10 +201,9 @@ describe(FriendsPanel, () => {
   });
 
   describe('syncing a friend from a shared timetable link', () => {
-    const cs4243Classes = mapValues(
-      makeLessonIndicesMap(getModuleTimetable(CS4243, 1)),
-      (classes) => Object.values(classes)[0],
-    );
+    const cs4243Classes = mapValues(getModuleLessonMap(CS4243, 1), (lessons): [ClassNo] => [
+      Object.values(lessons)[0].classNo,
+    ]);
     const validLink = `http://localhost:8080${timetableShare(
       1,
       { CS4243: cs4243Classes },
@@ -209,7 +211,7 @@ describe(FriendsPanel, () => {
       [],
     )}`;
 
-    let mockAxiosRequest: jest.SpiedFunction<typeof axios.request>;
+    let mockAxiosRequest: MockInstance<typeof axios.request>;
 
     beforeEach(() => {
       mockAxiosRequest = mockCs4243Api();
@@ -307,7 +309,7 @@ describe(FriendsPanel, () => {
   });
 
   describe('courses that a friend is a TA for', () => {
-    let mockAxiosRequest: jest.SpiedFunction<typeof axios.request>;
+    let mockAxiosRequest: MockInstance<typeof axios.request>;
 
     beforeEach(() => {
       mockAxiosRequest = mockCs4243Api();
@@ -317,13 +319,19 @@ describe(FriendsPanel, () => {
       mockAxiosRequest.mockRestore();
     });
 
-    const classes = makeLessonIndicesMap(getModuleTimetable(CS4243, 1));
-    const cs4243Classes = mapValues(classes, (byClass) => Object.values(byClass)[0]);
+    const lessonMap = getModuleLessonMap(CS4243, 1);
+    const cs4243Classes = mapValues(lessonMap, (lessons): [ClassNo] => [
+      Object.values(lessons)[0].classNo,
+    ]);
+
+    // The ids of the lessons of a class, which is how a TA is in it
+    const lessonIdsOfClass = (lessonType: string, classNo: string) =>
+      keys(pickBy(lessonMap[lessonType], (lesson) => lesson.classNo === classNo));
     const enableLabel = 'Enable TA for CS4243 for Alice';
     const disableLabel = 'Disable TA for CS4243 for Alice';
 
     // A store where Alice has CS4243, with the data of the module loaded by the panel
-    async function makeWithCourse(config: Record<string, number[]>) {
+    async function makeWithCourse(config: ModuleLessonConfig) {
       const store = make('Alice');
       store.dispatch(setFriendModule(store.getState().friends.friends[0].id, 1, 'CS4243', config));
       await waitFor(() => expect(store.getState().moduleBank.modules.CS4243).toBeDefined());
@@ -345,25 +353,35 @@ describe(FriendsPanel, () => {
       await userEvent.click(screen.getByLabelText(enableLabel));
 
       expect(getAlice(store).ta).toEqual({ 1: ['CS4243'] });
-      // Their classes are the same as before
-      expect(getAlice(store).timetable[1].CS4243).toEqual(cs4243Classes);
+      // They are in the lessons of the classes that they were in
+      const lessons = getAlice(store).timetable[1].CS4243;
+      Object.entries(cs4243Classes).forEach(([lessonType, [classNo]]) => {
+        expect([...lessons[lessonType]].sort()).toEqual(
+          lessonIdsOfClass(lessonType, classNo).sort(),
+        );
+      });
       expect(screen.getByLabelText(disableLabel)).toHaveAttribute('aria-pressed', 'true');
       expect(document.querySelector('.colorTa')).toBeInTheDocument();
     });
 
     test('should put the friend in one class of each lesson type when it is turned off', async () => {
-      const store = await makeWithCourse({
-        ...cs4243Classes,
-        Laboratory: [...classes.Laboratory['2'], ...classes.Laboratory['4']],
-      });
-      store.dispatch(addFriendTaModule(getAlice(store).id, 1, 'CS4243'));
+      // A TA is in the only lecture, and in two of the labs
+      const taConfig = {
+        Lecture: lessonIdsOfClass('Lecture', '1'),
+        Laboratory: [
+          ...lessonIdsOfClass('Laboratory', '2'),
+          ...lessonIdsOfClass('Laboratory', '4'),
+        ],
+      };
+      const store = await makeWithCourse(taConfig);
+      store.dispatch(addFriendTaModule(getAlice(store).id, 1, 'CS4243', taConfig));
 
       await userEvent.click(await screen.findByLabelText(disableLabel));
 
       expect(getAlice(store).ta).toEqual({ 1: [] });
-      expect(Object.values(classes.Laboratory)).toContainEqual(
-        getAlice(store).timetable[1].CS4243.Laboratory,
-      );
+      // They are in a class of each type of lesson again, which is stored by its number
+      expect(getAlice(store).timetable[1].CS4243.Lecture).toEqual(['1']);
+      expect([['2'], ['4']]).toContainEqual(getAlice(store).timetable[1].CS4243.Laboratory);
       expect(screen.getByLabelText(enableLabel)).toHaveAttribute('aria-pressed', 'false');
       expect(document.querySelector('.colorTa')).not.toBeInTheDocument();
     });

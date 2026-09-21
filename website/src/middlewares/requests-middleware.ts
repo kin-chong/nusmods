@@ -64,6 +64,12 @@ const requestMiddleware: Middleware<RequestsDispatchExt, State, Dispatch> =
       return next(action);
     }
 
+    if (action.meta.requestStatus) {
+      // No need to propagate ongoing requests
+      // Also helps to prevent ping-pong state-sync between tabs
+      return next(action);
+    }
+
     // type     is the base action type that will trigger
     // payload  is the request body to be processed
     const { type, payload, meta } = action;
@@ -87,8 +93,10 @@ const requestMiddleware: Middleware<RequestsDispatchExt, State, Dispatch> =
           meta: {
             ...meta,
             requestStatus: SUCCESS,
-            request: payload,
-            responseHeaders: response.headers,
+            // Spread to a plain object so cross-tab clones match the local
+            // shape; axios 1.x returns response.headers as an AxiosHeaders
+            // class instance whose prototype methods structuredClone strips.
+            responseHeaders: { ...response.headers },
           },
         });
 
@@ -101,7 +109,6 @@ const requestMiddleware: Middleware<RequestsDispatchExt, State, Dispatch> =
           meta: {
             ...meta,
             requestStatus: FAILURE,
-            request: payload,
           },
         });
 

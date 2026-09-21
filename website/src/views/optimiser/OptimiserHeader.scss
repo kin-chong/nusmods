@@ -5,6 +5,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-bottom: 0.5rem;
   gap: 0;
 
   @include media-breakpoint-down(md) {
@@ -47,4 +48,4 @@
 
 .titleIcon {
   color: #ff5138;
-} 
+}

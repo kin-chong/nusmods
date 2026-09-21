@@ -1,18 +1,31 @@
 import * as React from 'react';
 import classnames from 'classnames';
 import { connect } from 'react-redux';
-import { sortBy, difference, values, flatten, isEmpty, map, filter, isArray, keys } from 'lodash';
+import {
+  sortBy,
+  difference,
+  values,
+  flatten,
+  isEmpty,
+  filter,
+  isArray,
+  keys,
+  omit,
+  get,
+  flatMap,
+} from 'lodash-es';
 
 import { ColorMapping, Friend, HORIZONTAL, ModulesMap, TimetableOrientation } from 'types/reducers';
-import { LessonIndex, LessonType, Module, ModuleCode, Semester } from 'types/modules';
+import { ClassNo, LessonId, LessonType, Module, ModuleCode, Semester } from 'types/modules';
 import {
   ActiveFriendLesson,
   ModuleLessonConfig,
   SemTimetableConfig,
   SemTimetableConfigWithLessons,
   InteractableLesson,
-  LessonWithIndex,
   TaModulesConfigV1,
+  Lesson,
+  TimetableArrangement,
 } from 'types/timetables';
 
 import {
@@ -57,6 +70,7 @@ import ExamCalendar from './ExamCalendar';
 import ModulesTableFooter from './ModulesTableFooter';
 import FriendsPanel from './FriendsPanel';
 import styles from './TimetableContent.scss';
+import { serializeLessonDetails } from 'utils/timetables';
 
 type ModifiedCell = {
   className: string;
@@ -76,9 +90,9 @@ type OwnProps = {
 
 type Props = OwnProps & {
   // From Redux
-  timetableWithLessons: SemTimetableConfigWithLessons;
+  timetableWithLessons: SemTimetableConfigWithLessons<Lesson>;
   modules: ModulesMap;
-  activeLesson: LessonWithIndex | null;
+  activeLesson: Lesson | null;
   timetableOrientation: TimetableOrientation;
   showTitle: boolean;
   hiddenInTimetable: ModuleCode[];
@@ -89,24 +103,24 @@ type Props = OwnProps & {
   addModule: (semester: Semester, moduleCode: ModuleCode) => void;
   removeModule: (semester: Semester, moduleCode: ModuleCode) => void;
   resetTimetable: (semester: Semester) => void;
-  modifyLesson: (lesson: LessonWithIndex) => void;
+  modifyLesson: (lesson: Lesson) => void;
   addLesson: (
     semester: Semester,
     moduleCode: ModuleCode,
     lessonType: LessonType,
-    lessonIndices: LessonIndex[],
+    lessonIds: LessonId[],
   ) => void;
   removeLesson: (
     semester: Semester,
     moduleCode: ModuleCode,
     lessonType: LessonType,
-    lessonIndices: LessonIndex[],
+    lessonIds: LessonId[],
   ) => void;
   changeLesson: (
     semester: Semester,
     moduleCode: ModuleCode,
     lessonType: LessonType,
-    lessonIndices: LessonIndex[],
+    lessonIds: [ClassNo] | LessonId[],
   ) => void;
   cancelModifyLesson: () => void;
   setFriendModule: (
@@ -120,14 +134,14 @@ type Props = OwnProps & {
     semester: Semester,
     moduleCode: ModuleCode,
     lessonType: LessonType,
-    lessonIndices: LessonIndex[],
+    lessonIds: LessonId[],
   ) => void;
   removeFriendLesson: (
     friendId: string,
     semester: Semester,
     moduleCode: ModuleCode,
     lessonType: LessonType,
-    lessonIndices: LessonIndex[],
+    lessonIds: LessonId[],
   ) => void;
 };
 
@@ -200,7 +214,8 @@ class TimetableContent extends React.Component<Props, State> {
     sameModuleLessons: InteractableLesson[],
     interactedLesson: InteractableLesson,
   ): void => {
-    const { moduleCode, lessonType, lessonIndex } = interactedLesson;
+    const { moduleCode, lessonType } = interactedLesson;
+    const lessonId = serializeLessonDetails(interactedLesson);
 
     const currentlySelected = filter(
       sameModuleLessons,
@@ -208,11 +223,10 @@ class TimetableContent extends React.Component<Props, State> {
     );
     if (interactedLesson.canBeAddedToLessonConfig) {
       // Allow multiple lessons of the same type to be added for TA lessons
-      this.props.addLesson(this.props.semester, moduleCode, lessonType, [lessonIndex]);
+      this.props.addLesson(this.props.semester, moduleCode, lessonType, [lessonId]);
     } else if (currentlySelected.length > 1) {
-      // If a TA lesson is the last of its module, disallow removing it
-      // because the user will not be able to re-add the lessons.
-      this.props.removeLesson(this.props.semester, moduleCode, lessonType, [lessonIndex]);
+      // If a TA lesson is the last lesson in the module config, disallow removing it
+      this.props.removeLesson(this.props.semester, moduleCode, lessonType, [lessonId]);
     } else {
       this.props.cancelModifyLesson();
     }
@@ -242,7 +256,8 @@ class TimetableContent extends React.Component<Props, State> {
     // A friend that is a TA can be in several classes, so a class is added or removed instead of
     // swapped, one at a time, like for the user's own lessons
     if (friend && friendId === friend.id && lesson.isTaInTimetable) {
-      const { moduleCode, lessonType, lessonIndex } = lesson;
+      const { moduleCode, lessonType } = lesson;
+      const lessonId = serializeLessonDetails(lesson);
       const selectedLessons = friendsLessons.filter(
         (friendLesson) =>
           friendLesson.friendId === friendId &&
@@ -251,10 +266,10 @@ class TimetableContent extends React.Component<Props, State> {
       );
 
       if (lesson.canBeAddedToLessonConfig) {
-        this.props.addFriendLesson(friend.id, semester, moduleCode, lessonType, [lessonIndex]);
+        this.props.addFriendLesson(friend.id, semester, moduleCode, lessonType, [lessonId]);
       } else if (selectedLessons.length > 1) {
         // The last lesson is not removed, as it could not be added back afterwards
-        this.props.removeFriendLesson(friend.id, semester, moduleCode, lessonType, [lessonIndex]);
+        this.props.removeFriendLesson(friend.id, semester, moduleCode, lessonType, [lessonId]);
       } else {
         this.setState({ activeFriendLesson: null });
       }
@@ -265,19 +280,10 @@ class TimetableContent extends React.Component<Props, State> {
 
     if (friend && friendId === friend.id && lesson.canBeAddedToLessonConfig) {
       const { moduleCode, lessonType, classNo } = lesson;
-      const lessonIndices = friendsLessons
-        .filter(
-          (friendLesson) =>
-            friendLesson.friendId === friendId &&
-            friendLesson.moduleCode === moduleCode &&
-            friendLesson.lessonType === lessonType &&
-            friendLesson.classNo === classNo,
-        )
-        .map((friendLesson) => friendLesson.lessonIndex);
 
       this.props.setFriendModule(friend.id, semester, moduleCode, {
         ...friend.timetable[semester]?.[moduleCode],
-        [lessonType]: lessonIndices,
+        [lessonType]: [classNo],
       });
     }
 
@@ -287,8 +293,8 @@ class TimetableContent extends React.Component<Props, State> {
 
   modifyCell =
     (
-      moduleTimetable: InteractableLesson[],
-      activeLesson: LessonWithIndex | null,
+      interactableLessonsMap: SemTimetableConfigWithLessons<InteractableLesson>,
+      activeLesson: Lesson | null,
       friendsLessons: InteractableLesson[],
     ) =>
     (lesson: InteractableLesson, position: ClientRect): void => {
@@ -298,48 +304,36 @@ class TimetableContent extends React.Component<Props, State> {
         return;
       }
 
+      const lessonMap = get(interactableLessonsMap, lesson.moduleCode);
+
       // If activeLesson exists, then the user is choosing a cell to modify
       const isChoosing = !!activeLesson;
       if (isChoosing) {
-        const sameModuleLessons = moduleTimetable.filter(
-          (timetableLesson) => timetableLesson.moduleCode === lesson.moduleCode,
-        );
-
         if (this.isTaInTimetable(lesson.moduleCode)) {
+          const sameModuleLessons: InteractableLesson[] = flatMap(
+            lessonMap,
+            (lessonsWithLessonType) => values(lessonsWithLessonType),
+          );
           this.modifyTaCell(sameModuleLessons, lesson);
           return;
         }
 
-        const sameLessonTypeLessons = sameModuleLessons.filter(
-          (timetableLesson) => timetableLesson.lessonType === lesson.lessonType,
-        );
-
         if (lesson.canBeAddedToLessonConfig) {
-          const lessonIndices = map(
-            filter(
-              sameLessonTypeLessons,
-              (timetableLessons) => timetableLessons.classNo === lesson.classNo,
-            ),
-            (sameLessonTypeLesson) => sameLessonTypeLesson.lessonIndex,
-          );
-          this.props.changeLesson(
-            this.props.semester,
-            lesson.moduleCode,
-            lesson.lessonType,
-            lessonIndices,
-          );
+          this.props.changeLesson(this.props.semester, lesson.moduleCode, lesson.lessonType, [
+            lesson.classNo,
+          ]);
         } else {
           this.props.cancelModifyLesson();
         }
         resetScrollPosition();
-      } else {
-        this.props.modifyLesson(lesson);
-
-        this.modifiedCell = {
-          position,
-          className: getLessonIdentifier(lesson),
-        };
+        return;
       }
+
+      this.props.modifyLesson(lesson);
+      this.modifiedCell = {
+        position,
+        className: getLessonIdentifier(lesson),
+      };
     };
 
   cancelModifyLesson = (): void => {
@@ -479,23 +473,29 @@ class TimetableContent extends React.Component<Props, State> {
       hiddenInTimetable,
       taInTimetable,
       friends,
+      timetableWithLessons,
     } = this.props;
 
     const { showExamCalendar } = this.state;
 
-    const timetableLessons: LessonWithIndex[] = timetableLessonsArray(
-      this.props.timetableWithLessons,
-    ).filter((lesson) => !this.isHiddenInTimetable(lesson.moduleCode));
-
-    const interactableLesson: InteractableLesson[] = getInteractableLessons(
-      timetableLessons,
-      modules,
-      semester,
-      colors,
-      readOnly,
-      this.isTaInTimetable,
-      activeLesson,
+    const timetableLessons: SemTimetableConfigWithLessons<Lesson> = omit(
+      timetableWithLessons,
+      hiddenInTimetable,
     );
+
+    const interactableLessonsMap: SemTimetableConfigWithLessons<InteractableLesson> =
+      getInteractableLessons(
+        timetableLessons,
+        modules,
+        semester,
+        colors,
+        readOnly,
+        this.isTaInTimetable,
+        activeLesson,
+      );
+
+    const interactableLessons: InteractableLesson[] = timetableLessonsArray(interactableLessonsMap);
+
     // Friends are only overlaid on the user's own timetable, not on shared timetables
     const shownFriends = readOnly ? [] : friends;
     const friendColors = getSharedColors(this.props.timetable, colors, shownFriends, semester);
@@ -507,8 +507,8 @@ class TimetableContent extends React.Component<Props, State> {
       friendColors,
       this.state.activeFriendLesson,
     );
-    const arrangedLessons = arrangeFriendLanes(
-      arrangeLessonsForWeek(interactableLesson),
+    const arrangedLessons: TimetableArrangement<InteractableLesson> = arrangeFriendLanes(
+      arrangeLessonsForWeek(interactableLessons),
       visibleFriends,
       friendsLessons,
     );
@@ -569,7 +569,11 @@ class TimetableContent extends React.Component<Props, State> {
                   isVerticalOrientation={isVerticalOrientation}
                   isScrolledHorizontally={this.state.isScrolledHorizontally}
                   showTitle={isShowingTitle}
-                  onModifyCell={this.modifyCell(interactableLesson, activeLesson, friendsLessons)}
+                  onModifyCell={this.modifyCell(
+                    interactableLessonsMap,
+                    activeLesson,
+                    friendsLessons,
+                  )}
                 />
               </div>
             )}

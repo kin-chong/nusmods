@@ -1,6 +1,6 @@
-import { mapValues } from 'lodash';
+import { keys, mapValues, pickBy } from 'lodash-es';
 
-import { Module } from 'types/modules';
+import { ClassNo, Module } from 'types/modules';
 import { Friend } from 'types/reducers';
 import { ModuleWithColor } from 'types/views';
 import { ActiveFriendLesson, SemTimetableConfig } from 'types/timetables';
@@ -15,10 +15,9 @@ import {
   getSharedColors,
   parseShareLink,
 } from 'utils/friends';
-import { getModuleTimetable } from 'utils/modules';
-import { makeLessonIndicesMap } from 'utils/timetables';
+import { getModuleLessonMap } from 'utils/modules';
 
-const config = { Lecture: [0] };
+const config = { Lecture: ['1'] };
 
 function makeFriend(name: string, modules: string[]): Friend {
   return {
@@ -84,9 +83,17 @@ describe('friends lessons', () => {
   const modules = { CS4243 };
   const colors = { CS4243: 4 };
 
-  // Put the friend in the first class of every type of lesson
-  const lessonIndicesMap = makeLessonIndicesMap(getModuleTimetable(CS4243, semester));
-  const friendConfig = mapValues(lessonIndicesMap, (classes) => Object.values(classes)[0]);
+  // Put the friend in the first class of every type of lesson, which is stored by its number
+  const lessonMap = getModuleLessonMap(CS4243, semester);
+  const friendConfig = mapValues(lessonMap, (lessons): [ClassNo] => [
+    Object.values(lessons)[0].classNo,
+  ]);
+
+  // A TA is in the lessons of those classes instead, which are stored by their ids
+  const taConfig = mapValues(lessonMap, (lessons) => {
+    const [firstClassNo] = friendConfig[Object.values(lessons)[0].lessonType] ?? [];
+    return keys(pickBy(lessons, (lesson) => lesson.classNo === firstClassNo));
+  });
   const alice: Friend = {
     id: 'alice',
     name: 'Alice',
@@ -123,7 +130,7 @@ describe('friends lessons', () => {
     const [clicked] = getLessons(null).filter((lesson) => lesson.canBeSelectedAsActiveLesson);
     const lessons = getLessons({ friendId: 'alice', lesson: clicked });
 
-    expect(lessons.find((lesson) => lesson.isActive)?.lessonIndex).toEqual(clicked.lessonIndex);
+    expect(lessons.find((lesson) => lesson.isActive)?.lessonId).toEqual(clicked.lessonId);
 
     const options = lessons.filter((lesson) => lesson.canBeAddedToLessonConfig);
     expect(options.length).toBeGreaterThan(0);
@@ -161,7 +168,11 @@ describe('friends lessons', () => {
   });
 
   describe('for a friend that is a TA', () => {
-    const taAlice: Friend = { ...alice, ta: { [semester]: ['CS4243'] } };
+    const taAlice: Friend = {
+      ...alice,
+      timetable: { [semester]: { CS4243: taConfig } },
+      ta: { [semester]: ['CS4243'] },
+    };
     const isLecture = (lesson: { lessonType: string }) => lesson.lessonType === 'Lecture';
 
     test('lessons should be marked as ones of a TA', () => {
@@ -188,11 +199,11 @@ describe('friends lessons', () => {
 
       // The lessons that the friend is in already are not options, and the lesson that is being
       // clicked on is the one that is active
-      const selected = Object.values(friendConfig).flat();
-      options.forEach((option) => expect(selected).not.toContain(option.lessonIndex));
-      expect(
-        lessons.filter((lesson) => lesson.isActive).map((lesson) => lesson.lessonIndex),
-      ).toEqual([clicked.lessonIndex]);
+      const selected = Object.values(taConfig).flat();
+      options.forEach((option) => expect(selected).not.toContain(option.lessonId));
+      expect(lessons.filter((lesson) => lesson.isActive).map((lesson) => lesson.lessonId)).toEqual([
+        clicked.lessonId,
+      ]);
     });
 
     test('should show the lessons that were added as ones that the friend is in', () => {
@@ -205,8 +216,8 @@ describe('friends lessons', () => {
         timetable: {
           [semester]: {
             CS4243: {
-              ...friendConfig,
-              [option.lessonType]: [...friendConfig[option.lessonType], option.lessonIndex],
+              ...taConfig,
+              [option.lessonType]: [...taConfig[option.lessonType], option.lessonId],
             },
           },
         },
@@ -215,7 +226,7 @@ describe('friends lessons', () => {
       const lessons = getLessons({ friendId: 'alice', lesson: clicked }, withAdded);
 
       expect(lessons.filter((lesson) => lesson.canBeAddedToLessonConfig)).not.toContainEqual(
-        expect.objectContaining({ lessonIndex: option.lessonIndex }),
+        expect.objectContaining({ lessonId: option.lessonId }),
       );
     });
   });

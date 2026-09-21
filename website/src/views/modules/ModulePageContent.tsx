@@ -1,13 +1,14 @@
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import classnames from 'classnames';
 import ScrollSpy from 'react-scrollspy';
-import { kebabCase, map, mapValues, values, sortBy } from 'lodash';
+import { kebabCase, map, mapValues, values, sortBy } from 'lodash-es';
 
 import { Archive, Check } from 'react-feather';
 import { Module, NUSModuleAttributes, attributeDescription } from 'types/modules';
 
 import config from 'config';
 import { getSemestersOffered, isOffered, renderMCs } from 'utils/modules';
+import { getPreviousAyShortName, shouldShowSt2ExamExternalLink } from 'utils/specialTerm';
 import { intersperse } from 'utils/array';
 import { BULLET } from 'utils/react';
 import { NAVTAB_HEIGHT } from 'views/layout/Navtabs';
@@ -47,12 +48,6 @@ const SIDE_MENU_LABELS = {
 
 const SIDE_MENU_ITEMS = mapValues(SIDE_MENU_LABELS, kebabCase);
 
-const prevAYShortName = config.archiveYears
-  .slice(-1)?.[0]
-  ?.split('/')
-  ?.map((x) => x.substring(2, 4))
-  ?.join('/');
-
 const ModulePageContent: React.FC<Props> = ({ module, archiveYear }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -73,6 +68,21 @@ const ModulePageContent: React.FC<Props> = ({ module, archiveYear }) => {
   if (module.aliases) moduleCodes.push(...module.aliases);
 
   useScrollToTop();
+
+  // Smoothly scroll to section anchors from the side menu, but only while on
+  // this page. `scroll-behavior` must live on the scrolling root (`html`), so
+  // we scope it to the module page's lifecycle here instead of a global
+  // stylesheet rule that would leak to every other route. Respects
+  // `prefers-reduced-motion` for users who opt out of animations.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+
+    const { style } = document.documentElement;
+    style.scrollBehavior = 'smooth';
+    return () => {
+      style.scrollBehavior = '';
+    };
+  }, []);
 
   return (
     <div className={classnames('page-container', styles.moduleInfoPage)}>
@@ -224,28 +234,24 @@ const ModulePageContent: React.FC<Props> = ({ module, archiveYear }) => {
                   </div>
                 ))}
 
-                {/* Added because ST2 exams rely on previous AY's data due to
-                  ModReg R0, which is difficult for us to get, so we show a
-                  link instead. */}
-                {config.showSt2ExamTimetable &&
-                  module.semesterData.find((semester) => semester.semester === 4) && (
-                    <div className={styles.exam}>
-                      <h3 className={styles.descriptionHeading}>
-                        AY{prevAYShortName} Special Term II Exam
-                      </h3>
-                      <p>
-                        Please visit{' '}
-                        <a
-                          href={config.st2ExamTimetableUrl}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                        >
-                          the exam timetable
-                        </a>{' '}
-                        instead.
-                      </p>
-                    </div>
-                  )}
+                {shouldShowSt2ExamExternalLink(module) && (
+                  <div className={styles.exam}>
+                    <h3 className={styles.descriptionHeading}>
+                      AY{getPreviousAyShortName()} Special Term II Exam
+                    </h3>
+                    <p>
+                      Please visit{' '}
+                      <a
+                        href={config.st2ExamTimetableUrl}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                      >
+                        the exam timetable
+                      </a>{' '}
+                      instead.
+                    </p>
+                  </div>
+                )}
 
                 {!isArchive && offered && (
                   <>

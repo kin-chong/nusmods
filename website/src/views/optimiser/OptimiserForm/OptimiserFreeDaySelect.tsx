@@ -1,5 +1,5 @@
 import classNames from 'classnames';
-import { dropRight } from 'lodash';
+import { dropRight } from 'lodash-es';
 import { useCallback } from 'react';
 import { DayText, WorkingDays } from 'types/modules';
 import { OptimiserFormFields } from 'views/hooks/useOptimiserForm';
@@ -33,7 +33,7 @@ const OptimiserFreeDaySelect: React.FC<Props> = ({ hasSaturday, optimiserFormFie
     <section className={styles.freeDaysSection}>
       <h4 className={styles.optimiserDescription}>
         Select days you would like to be free
-        <OptimiserFormTooltip content="Chosen days will have no physical classes" />
+        <OptimiserFormTooltip content="Chosen days will have no live lessons" />
       </h4>
 
       <div className={styles.freeDaysButtons}>

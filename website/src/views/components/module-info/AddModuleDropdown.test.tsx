@@ -6,9 +6,13 @@ import { Module } from 'types/modules';
 /** @var {Module} */
 import { CS3216, CS1010S } from '__mocks__/modules';
 
+import { setupDownshiftTimers } from 'test-utils/downshiftTimers';
 import { AddModuleDropdownComponent } from './AddModuleDropdown';
 
+const jest = vi;
 describe(AddModuleDropdownComponent, () => {
+  setupDownshiftTimers();
+
   function make(module: Module, timetables: TimetableConfig = {}) {
     const addModule = jest.fn();
     const removeModule = jest.fn();
@@ -76,7 +80,9 @@ describe(AddModuleDropdownComponent, () => {
 
   test('should show remove button when the module is in timetable', () => {
     // eslint-disable-next-line no-useless-computed-key
-    const container = make(CS3216, { [1]: { CS3216: { Lecture: [0] } } });
+    const container = make(CS3216, {
+      1: { CS3216: { Lecture: ['1'] } },
+    });
     const button = container.wrapper.find('button');
 
     expect(button.text()).toMatch('Remove');

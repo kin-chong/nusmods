@@ -1,4 +1,4 @@
-import { flatMap, union, keys } from 'lodash';
+import { flatMap, keys, pickBy, union } from 'lodash-es';
 import { semesterForTimetablePage, TIMETABLE_SHARE } from 'views/routes/paths';
 
 import {
@@ -68,25 +68,31 @@ export function getFriendLessons(
   colors: ColorMapping,
   activeFriendLesson: ActiveFriendLesson | null,
 ): InteractableLesson[] {
-  const timetable = hydrateSemTimetableWithLessons(
-    friend.timetable[semester] ?? {},
-    modules,
-    semester,
+  // The data of a module is needed for its lessons
+  const loadedModules = pickBy(friend.timetable[semester], (_config, moduleCode) =>
+    Boolean(modules[moduleCode]),
   );
+  const timetable = hydrateSemTimetableWithLessons(loadedModules, modules, semester);
 
   // Only the friend that is being changed has options to choose from
   const activeLesson =
     activeFriendLesson?.friendId === friend.id ? activeFriendLesson.lesson : null;
 
-  return getInteractableLessons(
-    timetableLessonsArray(timetable),
+  const interactableLessons = getInteractableLessons(
+    timetable,
     modules,
     semester,
     colors,
     false,
     (moduleCode) => friend.ta?.[semester]?.includes(moduleCode) ?? false,
     activeLesson,
-  ).map((lesson) => ({ ...lesson, friendId: friend.id, friendName: friend.name }));
+  );
+
+  return timetableLessonsArray(interactableLessons).map((lesson) => ({
+    ...lesson,
+    friendId: friend.id,
+    friendName: friend.name,
+  }));
 }
 
 export function getFriendsLessons(

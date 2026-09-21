@@ -2,13 +2,13 @@ import { Config } from '../config';
 
 const config: Config = {
   // From env
-  appKey: '',
-  studentKey: '',
-  ttApiKey: '',
-  courseApiKey: '',
   acadApiKey: '',
   acadAppKey: '',
+  appKey: '',
   baseUrl: 'https://example.com/api',
+  courseApiKey: '',
+  studentKey: '',
+  ttApiKey: '',
 
   // Other config
   academicYear: '2018/2019',
@@ -17,6 +17,7 @@ const config: Config = {
   elasticConfig: {
     node: 'http://localhost:9200',
   },
+  specialTermAcademicYear: null,
 };
 
 export default config;

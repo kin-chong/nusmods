@@ -1,4 +1,6 @@
 {
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "timeout --kill-after=30s 5m pnpm build",
   "routes": [
     { "handle": "filesystem" },
     {
@@ -14,5 +16,6 @@
     "api/export/pdf.ts": {
       "maxDuration": 15
     }
-  }
+  },
+  "ignoreCommand": "bash ../vercel_ignore_build.sh"
 }

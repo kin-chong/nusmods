@@ -1,3 +1,4 @@
+import type { MockInstance } from 'vitest';
 import { act, screen, waitFor } from '@testing-library/react';
 import type { RenderOptions } from '@testing-library/react';
 import { Provider } from 'react-redux';
@@ -24,6 +25,7 @@ import modulesList from '__mocks__/moduleList.json';
 
 import { TimetableContainerComponent } from './TimetableContainer';
 
+const jest = vi;
 /**
  * A module that exists in our mock `moduleList` but which is also *not*
  * pre-loaded into `moduleBank`. Intended to be used by tests that expect
@@ -82,7 +84,7 @@ function make(
 }
 
 describe(TimetableContainerComponent, () => {
-  let mockAxiosRequest: jest.SpiedFunction<typeof axios.request>;
+  let mockAxiosRequest: MockInstance<typeof axios.request>;
 
   beforeEach(() => {
     mockDom();
@@ -142,7 +144,9 @@ describe(TimetableContainerComponent, () => {
   test('should eventually display imported timetable if there is one', async () => {
     const semester = 1;
     const importedTimetable = {
-      [moduleCodeThatCanBeLoaded]: { 'Sectional Teaching': [0] }, // BFS1001 doesn't have Lecture, only SectionalTeaching
+      [moduleCodeThatCanBeLoaded]: {
+        'Sectional Teaching': ['A1'],
+      }, // BFS1001 doesn't have Lecture, only SectionalTeaching
     };
     const location = timetableShare(semester, importedTimetable, [], []);
     make(location);
@@ -165,7 +169,11 @@ describe(TimetableContainerComponent, () => {
 
   test('should eventually display imported timetable without any modules loaded', async () => {
     const semester = 1;
-    const importedTimetable = { [moduleCodeThatCanBeLoaded]: { 'Sectional Teaching': [0] } };
+    const importedTimetable = {
+      [moduleCodeThatCanBeLoaded]: {
+        'Sectional Teaching': ['A1'],
+      },
+    };
     const location = timetableShare(semester, importedTimetable, [moduleCodeThatCanBeLoaded], []);
     make(location);
 
@@ -185,9 +193,11 @@ describe(TimetableContainerComponent, () => {
     expect(screen.queryByText(/SEC/)).not.toBeInTheDocument();
   });
 
-  test('should ignore invalid modules in imported timetable', () => {
+  test('should ignore invalid modules in imported timetable', async () => {
     const semester = 1;
-    const importedTimetable = { TRUMP2020: { Lecture: [1] } };
+    const importedTimetable = {
+      TRUMP2020: { Lecture: ['A1'] },
+    };
     const location = timetableShare(semester, importedTimetable, [], []);
     make(location);
 
@@ -213,7 +223,10 @@ describe(TimetableContainerComponent, () => {
 
     // Populate mock timetable
     await act(async () => {
-      const timetable = { CS1010S: { Lecture: [0] }, CS3216: { Lecture: [0] } };
+      const timetable = {
+        CS1010S: { Lecture: ['1'] },
+        CS3216: { Lecture: ['1'] },
+      };
       (store.dispatch as Dispatch)(setTimetable(semester, timetable));
     });
 

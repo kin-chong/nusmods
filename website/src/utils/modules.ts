@@ -1,9 +1,10 @@
-import _ from 'lodash';
+import { get } from 'lodash-es';
 import { format } from 'date-fns';
 import type {
   Module,
   ModuleCode,
-  RawLessonWithIndex,
+  ModuleLessonMap,
+  RawLesson,
   Semester,
   SemesterData,
   SemesterDataCondensed,
@@ -29,11 +30,21 @@ export function getModuleSemesterData(
 }
 
 // Returns a flat array of lessons of a module for the corresponding semester.
-export function getModuleTimetable(
+export function getModuleTimetable(module: Module, semester: Semester): readonly RawLesson[] {
+  return get(getModuleSemesterData(module, semester), 'timetable', []);
+}
+
+/**
+ * Returns a map of lessons to lessonType of a module for the corresponding semester.
+ * @param module
+ * @param semester
+ * @returns the lesson map generated when module data was downloaded
+ */
+export function getModuleLessonMap(
   module: Module,
   semester: Semester,
-): readonly RawLessonWithIndex[] {
-  return _.get(getModuleSemesterData(module, semester), 'timetable', []);
+): Readonly<ModuleLessonMap<RawLesson>> {
+  return get(getModuleSemesterData(module, semester), 'lessonMap', {});
 }
 
 /**
@@ -50,11 +61,11 @@ export function formatExamDate(examDate: string | null | undefined): string {
 }
 
 export function getExamDate(module: Module, semester: Semester): string | null {
-  return _.get(getModuleSemesterData(module, semester), 'examDate') || null;
+  return get(getModuleSemesterData(module, semester), 'examDate') || null;
 }
 
 export function getExamDuration(module: Module, semester: Semester): number | null {
-  return _.get(getModuleSemesterData(module, semester), 'examDuration') || null;
+  return get(getModuleSemesterData(module, semester), 'examDuration') || null;
 }
 
 export function getFormattedExamDate(module: Module, semester: Semester): string {

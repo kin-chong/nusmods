@@ -8,71 +8,29 @@ import (
 	models "github.com/nusmodifications/nusmods/website/api/optimiser/_models"
 )
 
-// Parses the assignments into a map of module codes to lesson types to class numbers
-func CreateConfig(assignments map[string]string, lessonToSlots map[string][][]models.ModuleSlot) map[string]map[string][]models.LessonIndex {
-	config := make(map[string]map[string][]models.LessonIndex)
+// FillDefaultsAndGenerateShareableLinks fills in default class assignments for any unassigned
+// lessons and returns two NUSMods shareable links.
+func FillDefaultsAndGenerateShareableLinks(
+	assignments map[string]string,
+	defaultSlots map[string]map[string][]models.ModuleSlot,
+	req models.OptimiserRequest,
+) (string, string) {
+	config := createConfig(assignments)
+	serializedConfig := serializeConfig(config)
 
-	for lessonKey, classNo := range assignments {
-		// Parse lesson key: "MODULE|LESSONTYPE"
-		parts := strings.Split(lessonKey, "|")
-		if len(parts) != 2 {
-			continue
-		}
-		moduleCode := parts[0]
-		lessonType := parts[1]
-
-		// Initialize module config if not exists
-		if config[moduleCode] == nil {
-			config[moduleCode] = make(map[string][]models.LessonIndex)
-		}
-
-		// Add lesson type and class number to config
-		for _, lessonsWithClassNo := range lessonToSlots[lessonKey] {
-			if lessonsWithClassNo[0].ClassNo != classNo {
-				continue
+	// Initialize assignments for skipped slots with default slots
+	for moduleCode, lessonTypeMap := range defaultSlots {
+		for lessonType, slots := range lessonTypeMap {
+			lessonKey := strings.ToUpper(moduleCode) + "|" + lessonType
+			if assignments[lessonKey] == "" {
+				classNo := slots[0].ClassNo
+				assignments[lessonKey] = classNo
 			}
-
-			for _, lesson := range lessonsWithClassNo {
-				config[moduleCode][lessonType] = append(config[moduleCode][lessonType], lesson.LessonIndex)
-			}
-			break
 		}
 	}
 
-	return config
-}
-
-// Serializes an array of lesson indices into the format used in timetable share links
-//
-// Returns "1, 2, 3" with input [1, 2, 3]
-func SerializeLessonIndices(lessonIndex []models.LessonIndex) string {
-	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(lessonIndex)), ","), "[]")
-}
-
-// Constructs the URL
-func SerializeConfig(config map[string]map[string][]models.LessonIndex) string {
-	var moduleParams []string
-
-	for moduleCode, lessons := range config {
-		var lessonParams []string
-		for lessonType, lessonIndex := range lessons {
-			// Get abbreviation for lesson type
-			abbrev := constants.LessonTypeAbbrev[strings.ToUpper(lessonType)]
-
-			lessonParams = append(lessonParams, fmt.Sprintf("%s:%s", abbrev, "("+SerializeLessonIndices(lessonIndex)+")"))
-		}
-		if len(lessonParams) > 0 {
-			moduleParams = append(moduleParams, fmt.Sprintf("%s=%s", moduleCode, strings.Join(lessonParams, constants.MODULE_CODE_SEPARATOR)))
-		}
-	}
-
-	return strings.Join(moduleParams, "&")
-}
-
-// GenerateNUSModsShareableLink creates a shareable NUSMods link from the assignments
-func GenerateNUSModsShareableLink(assignments map[string]string, lessonToSlots map[string][][]models.ModuleSlot, req models.OptimiserRequest) string {
-	config := CreateConfig(assignments, lessonToSlots)
-	serializedConfig := SerializeConfig(config)
+	defaultConfig := createConfig(assignments)
+	defaultSerializedConfig := serializeConfig(defaultConfig)
 
 	semesterPath := ""
 	switch req.AcadSem {
@@ -90,6 +48,65 @@ func GenerateNUSModsShareableLink(assignments map[string]string, lessonToSlots m
 
 	// Construct final URL
 	shareableURL := fmt.Sprintf("%s/%s/share?%s", constants.NUSModsTimetableBaseURL, semesterPath, serializedConfig)
+	defaultShareableURL := fmt.Sprintf(
+		"%s/%s/share?%s",
+		constants.NUSModsTimetableBaseURL,
+		semesterPath,
+		defaultSerializedConfig,
+	)
 
-	return shareableURL
+	return shareableURL, defaultShareableURL
+}
+
+// Parses the assignments into a map of module codes to lesson types to class numbers
+func createConfig(
+	assignments map[string]string,
+) map[string]map[string]models.ClassNo {
+	config := make(map[string]map[string]models.ClassNo)
+
+	for lessonKey, classNo := range assignments {
+		// Parse lesson key: "MODULE|LESSONTYPE"
+		parts := strings.Split(lessonKey, "|")
+		if len(parts) != 2 {
+			continue
+		}
+		moduleCode := parts[0]
+		lessonType := parts[1]
+
+		// Initialize module config if not exists
+		if config[moduleCode] == nil {
+			config[moduleCode] = make(map[string]models.ClassNo)
+		}
+
+		// Add lesson type and class number to config
+		config[moduleCode][lessonType] = classNo
+	}
+
+	return config
+}
+
+// Constructs the URL
+func serializeConfig(config map[string]map[string]models.ClassNo) string {
+	var moduleParams []string
+
+	for moduleCode, lessons := range config {
+		var lessonParams []string
+		for lessonType, classNo := range lessons {
+			// Get abbreviation for lesson type
+			abbrev := constants.LessonTypeAbbrev[strings.ToUpper(lessonType)]
+
+			lessonParams = append(
+				lessonParams,
+				fmt.Sprintf("%s:%s", abbrev, classNo),
+			)
+		}
+		if len(lessonParams) > 0 {
+			moduleParams = append(
+				moduleParams,
+				fmt.Sprintf("%s=%s", moduleCode, strings.Join(lessonParams, constants.LessonParamsSeparator)),
+			)
+		}
+	}
+
+	return strings.Join(moduleParams, "&")
 }

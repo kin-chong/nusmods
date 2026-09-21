@@ -2,7 +2,7 @@ import * as React from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router-dom';
 import classnames from 'classnames';
-import { sortBy } from 'lodash';
+import { sortBy } from 'lodash-es';
 import { produce } from 'immer';
 
 import { Book, BookOpen, Eye, EyeOff, Trash } from 'react-feather';
@@ -17,8 +17,8 @@ import {
   selectModuleColor,
   hideLessonInTimetable,
   showLessonInTimetable,
-  addTaModule,
   disableTaModule,
+  enableTaModule,
 } from 'actions/timetables';
 import {
   getExamDate,
@@ -210,7 +210,7 @@ export default connect(
     selectModuleColor,
     hideLessonInTimetable,
     showLessonInTimetable,
-    enableTaModule: addTaModule,
+    enableTaModule,
     disableTaModule,
   },
 )(React.memo(TimetableModulesTableComponent));

@@ -2,7 +2,9 @@ import { render, screen } from '@testing-library/react';
 import { defaultLectureOption } from 'test-utils/optimiser';
 import OptimiserResults, { OptimiserResultsProps } from './OptimiserResults';
 
+const jest = vi;
 const shareableLink = 'https://nusmods.com/timetable/sem-1/share?CS1231S=TUT:01A,LEC:1';
+const defaultShareableLink = 'https://nusmods.com/timetable/sem-1/share?CS1231S=TUT:01A,LEC:1';
 
 describe('OptimiserResults', () => {
   beforeEach(() => {
@@ -13,6 +15,7 @@ describe('OptimiserResults', () => {
   it('should render when there is a shareable link', () => {
     const props: OptimiserResultsProps = {
       shareableLink,
+      defaultShareableLink,
       unassignedLessons: [],
     };
     const { container } = render(<OptimiserResults {...props} />);
@@ -22,6 +25,7 @@ describe('OptimiserResults', () => {
   it('should not render when there is no shareable link', () => {
     const props: OptimiserResultsProps = {
       shareableLink: '',
+      defaultShareableLink: '',
       unassignedLessons: [],
     };
     const { container } = render(<OptimiserResults {...props} />);
@@ -31,6 +35,7 @@ describe('OptimiserResults', () => {
   it('should show full timetable when there are no unassigned lessons', () => {
     const props: OptimiserResultsProps = {
       shareableLink,
+      defaultShareableLink,
       unassignedLessons: [],
     };
     render(<OptimiserResults {...props} />);
@@ -40,9 +45,11 @@ describe('OptimiserResults', () => {
   it('should show partial timetable when there are unassigned lessons', () => {
     const props: OptimiserResultsProps = {
       shareableLink,
+      defaultShareableLink,
       unassignedLessons: [defaultLectureOption],
     };
     render(<OptimiserResults {...props} />);
-    expect(screen.getByRole('link')).toHaveTextContent('Open Partial Timetable');
+    expect(screen.getByText('View Optimised Lessons Only')).toBeInTheDocument();
+    expect(screen.getByText('View All Lessons')).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-const api = '/api/optimiser/optimise';
+const api = OPTIMISER_API_URL;
 
 export interface OptimiseRequest {
   modules: string[];
@@ -10,6 +10,7 @@ export interface OptimiseRequest {
   earliestTime: string;
   latestTime: string;
   recordings: string[];
+  pinnedSlots: string[];
   lunchStart: string;
   lunchEnd: string;
   maxConsecutiveHours: number;
@@ -31,6 +32,7 @@ export interface LessonSlot {
 
 export interface OptimiseResponse {
   shareableLink?: string;
+  defaultShareableLink?: string;
   Assignments?: { [lesson: string]: string };
   DaySlots?: (LessonSlot | null)[][];
 

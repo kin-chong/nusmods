@@ -4,15 +4,25 @@ Create a new issue on GitHub with this checklist after the finals every semester
 
 ## Every Year
 
+### Around End of Semester 2
+
+- [ ] Rotate `GITHUB_API_TOKEN`, which expires after 366 days, and update it in both deployment platforms:
+  - [ ] In the [Cloudflare workers](https://github.com/nusmodifications/serverless-functions), update the token on the Cloudflare dashboard and grant write permissions under [Issues](https://docs.github.com/en/rest/issues/issues?apiVersion=2026-03-10#create-an-issue) for the `nusmods` repository so venue issues can be created.
+  - [ ] In Vercel, update the token for both the `nusmods-website` and `nusmods-export` projects so fork PR builds can be identified by `vercel_ignore_build.sh`. The token is used by the projects' ignored build step, not by either service at runtime.
+
 ### 1 week before NUS IT Data Update
 
 - **Prepare "PR1"**
+  - [ ] Update `packages/nusmods-academic-calendar/academic-calendar.json` with data for the new academic year so scraper and website Special Term overlap routing remains correct
   - [ ] Update with next year's holiday data from academic calendar to `website/src/data/holidays.json` - Singapore & NUS Holidays (e.g. Well-Being day): <https://www.nus.edu.sg/registrar/calendar>
   - [ ] Update academic year in `scrapers/nus-v2/src/config.ts`
+
 - **Prepare "PR2"**
-  - [ ] In `app-config.json`, update `examAvailability` to include only the semesters where exam information is available
-  - [ ] Update `website/src/data/academic-calendar.json` with data for the new academic year
-  - [ ] Add announcement to website by updating `website/src/data/holidays.json`
+  - [ ] In `app-config.json`, update `academicYear` and `examAvailability` to include only the semesters where exam information is available
+  - [ ] Update `packages/nusmods-academic-calendar/academic-calendar.json` with data for the new academic year
+  - [ ] Add announcement to website by updating `website/src/views/components/notfications/Announcements.tsx`
+  - [ ] Leave `specialTermAcademicYear` as `null` — overlap with previous AY Special Term I and II is handled automatically until new AY Semester 1 starts (see PR3). Set manually (e.g. `"2024/2025"`) only if auto-detection from the academic calendar is insufficient
+  - [ ] Update `semester` in `app-config.json` and the ModReg schedule (see [Every Semester](#every-semester))
 
 ### 1-2 days before NUS IT Data Update
 
@@ -27,23 +37,43 @@ Create a new issue on GitHub with this checklist after the finals every semester
 - [ ] Deploy! :tada: :tada:
 - [ ] Monitor Sentry and Telegram for issues
 
+### 1 week before new AY Semester 1 starts
+
+PR2 is usually merged around July, while previous AY Special Term I and II run until new AY Semester 1 starts. During this window, sem 1–2 use the new AY and sem 3–4 continue to use the previous AY automatically — no action needed unless `specialTermAcademicYear` was set manually in PR2.
+
+- **Prepare "PR3"**
+  - [ ] Ensure `specialTermAcademicYear` is `null` (overlap ends when Semester 1 starts per `packages/nusmods-academic-calendar/academic-calendar.json`)
+  - [ ] Add the previous academic year to `archiveYears` in `app-config.json`
+
+### When new AY Semester 1 starts
+
+- [ ] **Merge "PR3"** to Master > Production
+- [ ] Deploy and monitor Sentry and Telegram for issues
+
 Reference PRs: [PR #3286](https://github.com/nusmodifications/nusmods/pull/3286) and [PR #3287](https://github.com/nusmodifications/nusmods/pull/3287)
 
 ## Every Semester
 
 - [ ] Update semester in `website/src/config/app-config.json`
-- [ ] In `app-config.json`, add semester to `examAvailability` to indicate exam information is available for the semester
 - [ ] Update the ModReg schedule in `website/src/data/modreg-schedule.json`, and make sure the correct version is pointed to in `website/src/config/index.ts`
   - Reference PR: [PR #2764](https://github.com/nusmodifications/nusmods/pull/2764)
 
 ## CPEx
 
-- Before
-  - [ ] Update `TERM` in `scrapers/cpex-scraper/src/index.ts` and `MPE_SEMESTER` in `website/src/views/mpe/constants.ts` to be the semester you're configuring CPEx for (usually the next semester)
-  - [ ] ~~Update the displayed dates in `website/src/views/mpe/MpeContainer.tsx` and any new requirements/descriptions~~ Auto-updated using dates in modreg-schedule.json
-  - [ ] Update dates in the ModReg schedule in `website/src/data/modreg-schedule.json`
-  - [ ] Enable the `enableCPExforProd` and `showCPExTab` flags in `website/src/featureFlags.ts`
-  - [ ] Push onto `cpex-staging` branch (Ensure synced with `master` branch first), then visit https://cpex-staging.nusmods.com/cpex and verify that NUS authentication is working
+### Before CPEx Testing
+
+- [ ] Update `ACADEMIC_YEAR` in `scrapers/cpex-scraper/src/index.ts`. It should be for the **next** semester
+- [ ] Create PR and merge to production
+- [ ] Run scraper
+
+### During CPEx Testing
+
+For `cpex-staging` deployment
+
+- [ ] Update `MPE_SEMESTER` in `website/src/views/mpe/constants.ts` to be the semester you're configuring CPEx for (usually the next semester)
+- [ ] Update dates in the ModReg schedule in `website/src/data/modreg-schedule.json`
+- [ ] Enable the `enableCPExforProd` and `showCPExTab` flags in `website/src/featureFlags.ts`
+- [ ] Push onto `cpex-staging` branch (Ensure synced with `master` branch first), then visit https://cpex-staging.nusmods.com/cpex and verify that NUS authentication is working
 
 ```bash
 git checkout master
@@ -53,10 +83,13 @@ git reset --hard master
 git push
 ```
 
-- During
-  - [ ] Merge `cpex-staging` into `master`
-  - [ ] Deploy latest `master` to `production`
-- After
-  - [ ] Disable the `enableCPExforProd` and `showCPExTab` flags in `website/src/featureFlags.ts`
-  - [ ] Merge into `master`
-  - [ ] Deploy latest `master` to `production`
+### During CPEx
+
+- [ ] Merge `cpex-staging` into `master` via PR
+- [ ] Deploy latest `master` to `production`
+
+### After CPEx
+
+- [ ] Disable the `enableCPExforProd` and `showCPExTab` flags in `website/src/featureFlags.ts`
+- [ ] Merge into `master`
+- [ ] Deploy latest `master` to `production`
