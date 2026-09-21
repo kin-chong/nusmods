@@ -168,3 +168,147 @@ describe('persisted friends', () => {
     result.friends.forEach((friend) => expect(friend.timetable).toEqual({}));
   });
 });
+
+describe('courses that a friend is a TA for', () => {
+  // Alice has CS1010S, and Bob is there to check that other friends are not changed
+  const setup = () => {
+    const initial = withFriends('Alice', 'Bob');
+    const state = reducer(
+      initial,
+      actions.setFriendModule(initial.friends[0].id, 1, 'CS1010S', lessonConfig),
+    );
+    return { state, alice: state.friends[0], bob: state.friends[1] };
+  };
+
+  test('can be turned on for a semester without changing the classes', () => {
+    const { state, alice } = setup();
+
+    const nextState = reducer(state, actions.addFriendTaModule(alice.id, 1, 'CS1010S'));
+
+    expect(nextState.friends[0].ta).toEqual({ 1: ['CS1010S'] });
+    expect(nextState.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
+  });
+
+  test('should only be there once, and not affect other friends or semesters', () => {
+    const { state, alice } = setup();
+
+    const nextState = [
+      actions.addFriendTaModule(alice.id, 1, 'CS1010S'),
+      actions.addFriendTaModule(alice.id, 1, 'CS1010S'),
+      actions.addFriendTaModule(alice.id, 2, 'CS2030'),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].ta).toEqual({ 1: ['CS1010S'], 2: ['CS2030'] });
+    expect(nextState.friends[1].ta).toBeUndefined();
+  });
+
+  test('can be turned off, which sets the classes that are given', () => {
+    const { state, alice } = setup();
+    const oneClass = { Lecture: [0], Tutorial: [3] };
+
+    const nextState = [
+      actions.addFriendTaModule(alice.id, 1, 'CS1010S'),
+      actions.removeFriendTaModule(alice.id, 1, 'CS1010S', oneClass),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].ta).toEqual({ 1: [] });
+    expect(nextState.friends[0].timetable).toEqual({ 1: { CS1010S: oneClass } });
+  });
+
+  test('can have classes added, without repeating one that is there', () => {
+    const { state, alice } = setup();
+
+    const nextState = [
+      actions.addFriendLesson(alice.id, 1, 'CS1010S', 'Tutorial', [4, 5]),
+      actions.addFriendLesson(alice.id, 1, 'CS1010S', 'Recitation', [9]),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].timetable[1].CS1010S).toEqual({
+      Lecture: [0],
+      Tutorial: [4, 5, 3],
+      Recitation: [9],
+    });
+  });
+
+  test('can have classes removed, and keeps the ones that are not', () => {
+    const { state, alice } = setup();
+
+    const nextState = reducer(
+      state,
+      actions.removeFriendLesson(alice.id, 1, 'CS1010S', 'Tutorial', [3]),
+    );
+
+    expect(nextState.friends[0].timetable[1].CS1010S).toEqual({ Lecture: [0], Tutorial: [4] });
+  });
+
+  test('should not add classes to a course that the friend does not have', () => {
+    const { state, alice } = setup();
+
+    const nextState = [
+      actions.addFriendLesson(alice.id, 1, 'CS2030', 'Lecture', [1]),
+      actions.removeFriendLesson(alice.id, 1, 'CS2030', 'Lecture', [1]),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
+  });
+
+  test('should not have classes changed for other friends', () => {
+    const { state, alice, bob } = setup();
+
+    const nextState = reducer(
+      state,
+      actions.addFriendLesson(alice.id, 1, 'CS1010S', 'Tutorial', [8]),
+    );
+
+    expect(nextState.friends[1]).toBe(bob);
+  });
+
+  test('should stop being ones that the friend is a TA for when the course is removed', () => {
+    const { state, alice } = setup();
+
+    const nextState = [
+      actions.addFriendTaModule(alice.id, 1, 'CS1010S'),
+      actions.removeFriendModule(alice.id, 1, 'CS1010S'),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].ta).toEqual({ 1: [] });
+    expect(nextState.friends[0].timetable).toEqual({ 1: {} });
+  });
+
+  test('are the ones given when the courses of a friend in a semester are replaced', () => {
+    const { state, alice } = setup();
+    const replacement = { CS2030: { Lecture: [2] }, CS2040: { Lecture: [3] } };
+
+    const nextState = [
+      actions.addFriendTaModule(alice.id, 1, 'CS1010S'),
+      actions.setFriendTimetable(alice.id, 1, replacement, ['CS2040']),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].ta).toEqual({ 1: ['CS2040'] });
+  });
+
+  test('are none when the courses are replaced without saying which', () => {
+    const { state, alice } = setup();
+
+    const nextState = [
+      actions.addFriendTaModule(alice.id, 1, 'CS1010S'),
+      actions.setFriendTimetable(alice.id, 1, { CS2030: { Lecture: [2] } }),
+    ].reduce(reducer, state);
+
+    expect(nextState.friends[0].ta).toEqual({ 1: [] });
+  });
+
+  test('should be forgotten in a new academic year, like the rest of the courses', () => {
+    const { alice } = setup();
+    const saved = [{ ...alice, ta: { 1: ['CS1010S'] } }];
+
+    const result = persistConfig.stateReconciler(
+      { friends: saved, academicYear: '2000/2001' },
+      defaultFriendsState,
+      defaultFriendsState,
+      { debug: false } as Parameters<typeof persistConfig.stateReconciler>[3],
+    );
+
+    expect(result.friends[0].ta).toEqual({});
+  });
+});

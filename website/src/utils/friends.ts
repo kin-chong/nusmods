@@ -83,7 +83,7 @@ export function getFriendLessons(
     semester,
     colors,
     false,
-    () => false,
+    (moduleCode) => friend.ta?.[semester]?.includes(moduleCode) ?? false,
     activeLesson,
   ).map((lesson) => ({ ...lesson, friendId: friend.id, friendName: friend.name }));
 }

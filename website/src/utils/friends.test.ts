@@ -156,6 +156,66 @@ describe('friends lessons', () => {
     expect(rowOwners.slice(firstBobRow).every((owners) => owners.has('bob'))).toBe(true);
     expect(rows.every((row) => row.length > 0)).toBe(true);
   });
+
+  describe('for a friend that is a TA', () => {
+    const taAlice: Friend = { ...alice, ta: { [semester]: ['CS4243'] } };
+    const isLecture = (lesson: { lessonType: string }) => lesson.lessonType === 'Lecture';
+
+    test('lessons should be marked as ones of a TA', () => {
+      getLessons(null, taAlice).forEach((lesson) => expect(lesson.isTaInTimetable).toBe(true));
+      getLessons(null, alice).forEach((lesson) => expect(lesson.isTaInTimetable).toBe(false));
+    });
+
+    test('every lesson should be able to be clicked on, even if there is no other class', () => {
+      // CS4243 only has one lecture, which someone who is not a TA has no other class to change to
+      const lectures = getLessons(null, alice).filter(isLecture);
+      expect(lectures.length).toBeGreaterThan(0);
+      lectures.forEach((lesson) => expect(lesson.canBeSelectedAsActiveLesson).toBe(false));
+
+      const taLectures = getLessons(null, taAlice).filter(isLecture);
+      taLectures.forEach((lesson) => expect(lesson.canBeSelectedAsActiveLesson).toBe(true));
+    });
+
+    test('clicking on a lesson should show the other lessons to add', () => {
+      const [clicked] = getLessons(null, taAlice).filter((lesson) => !isLecture(lesson));
+      const lessons = getLessons({ friendId: 'alice', lesson: clicked }, taAlice);
+
+      const options = lessons.filter((lesson) => lesson.canBeAddedToLessonConfig);
+      expect(options.length).toBeGreaterThan(0);
+
+      // The lessons that the friend is in already are not options, and the lesson that is being
+      // clicked on is the one that is active
+      const selected = Object.values(friendConfig).flat();
+      options.forEach((option) => expect(selected).not.toContain(option.lessonIndex));
+      expect(
+        lessons.filter((lesson) => lesson.isActive).map((lesson) => lesson.lessonIndex),
+      ).toEqual([clicked.lessonIndex]);
+    });
+
+    test('should show the lessons that were added as ones that the friend is in', () => {
+      const [clicked] = getLessons(null, taAlice).filter((lesson) => !isLecture(lesson));
+      const option = getLessons({ friendId: 'alice', lesson: clicked }, taAlice).find(
+        (lesson) => lesson.canBeAddedToLessonConfig,
+      ) as ReturnType<typeof getLessons>[number];
+      const withAdded: Friend = {
+        ...taAlice,
+        timetable: {
+          [semester]: {
+            CS4243: {
+              ...friendConfig,
+              [option.lessonType]: [...friendConfig[option.lessonType], option.lessonIndex],
+            },
+          },
+        },
+      };
+
+      const lessons = getLessons({ friendId: 'alice', lesson: clicked }, withAdded);
+
+      expect(lessons.filter((lesson) => lesson.canBeAddedToLessonConfig)).not.toContainEqual(
+        expect.objectContaining({ lessonIndex: option.lessonIndex }),
+      );
+    });
+  });
 });
 
 describe(parseShareLink, () => {

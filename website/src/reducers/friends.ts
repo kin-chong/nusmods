@@ -1,12 +1,16 @@
-import { omit } from 'lodash';
+import { omit, uniq, without } from 'lodash';
 
 import { Friend, FriendsState } from 'types/reducers';
 import { PersistConfig } from 'storage/persistReducer';
 import { Actions } from 'types/actions';
 import {
   ADD_FRIEND,
+  ADD_FRIEND_LESSON,
+  ADD_FRIEND_TA_MODULE,
   REMOVE_FRIEND,
+  REMOVE_FRIEND_LESSON,
   REMOVE_FRIEND_MODULE,
+  REMOVE_FRIEND_TA_MODULE,
   RENAME_FRIEND,
   SET_FRIEND_HIDDEN,
   SET_FRIEND_MODULE,
@@ -39,7 +43,7 @@ export const persistConfig = {
 
     return {
       ...original,
-      friends: savedFriends.map((friend) => ({ ...friend, timetable: {} })),
+      friends: savedFriends.map((friend) => ({ ...friend, timetable: {}, ta: {} })),
     };
   },
 };
@@ -105,11 +109,12 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
     }
 
     case SET_FRIEND_TIMETABLE: {
-      const { friendId, semester, timetable } = action.payload;
+      const { friendId, semester, timetable, taModules } = action.payload;
 
       return updateFriend(state, friendId, (friend) => ({
         ...friend,
         timetable: { ...friend.timetable, [semester]: timetable },
+        ta: { ...friend.ta, [semester]: taModules },
       }));
     }
 
@@ -122,6 +127,57 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
           ...friend.timetable,
           [semester]: omit(friend.timetable[semester], moduleCode),
         },
+        // A course that is not there any more cannot be one that they are a TA for
+        ta: { ...friend.ta, [semester]: without(friend.ta?.[semester], moduleCode) },
+      }));
+    }
+
+    case ADD_FRIEND_LESSON:
+    case REMOVE_FRIEND_LESSON: {
+      const { friendId, semester, moduleCode, lessonType, lessonIndices } = action.payload;
+
+      return updateFriend(state, friendId, (friend) => {
+        const lessonConfig = friend.timetable[semester]?.[moduleCode];
+        if (!lessonConfig) return friend;
+
+        const current = lessonConfig[lessonType] ?? [];
+        const updated =
+          action.type === ADD_FRIEND_LESSON
+            ? uniq([...lessonIndices, ...current])
+            : without(current, ...lessonIndices);
+
+        return {
+          ...friend,
+          timetable: {
+            ...friend.timetable,
+            [semester]: {
+              ...friend.timetable[semester],
+              [moduleCode]: { ...lessonConfig, [lessonType]: updated },
+            },
+          },
+        };
+      });
+    }
+
+    case ADD_FRIEND_TA_MODULE: {
+      const { friendId, semester, moduleCode } = action.payload;
+
+      return updateFriend(state, friendId, (friend) => ({
+        ...friend,
+        ta: { ...friend.ta, [semester]: uniq([...(friend.ta?.[semester] ?? []), moduleCode]) },
+      }));
+    }
+
+    case REMOVE_FRIEND_TA_MODULE: {
+      const { friendId, semester, moduleCode, lessonConfig } = action.payload;
+
+      return updateFriend(state, friendId, (friend) => ({
+        ...friend,
+        timetable: {
+          ...friend.timetable,
+          [semester]: { ...friend.timetable[semester], [moduleCode]: lessonConfig },
+        },
+        ta: { ...friend.ta, [semester]: without(friend.ta?.[semester], moduleCode) },
       }));
     }
 

@@ -120,3 +120,8 @@
   border: 0;
   pointer-events: none;
 }
+
+// The same as the color of a course of the user that they are a TA for
+.colorTa {
+  clip-path: polygon(0% 0%, 100% 0%, 0% 100%);
+}

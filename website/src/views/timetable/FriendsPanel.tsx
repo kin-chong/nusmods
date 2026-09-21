@@ -3,7 +3,16 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import classnames from 'classnames';
 import { flatMap, keys, noop } from 'lodash';
-import { Edit2, Eye, EyeOff, Link as LinkIcon, Trash, UserPlus } from 'react-feather';
+import {
+  Book,
+  BookOpen,
+  Edit2,
+  Eye,
+  EyeOff,
+  Link as LinkIcon,
+  Trash,
+  UserPlus,
+} from 'react-feather';
 
 import { ColorMapping, Friend, ModuleSelectList } from 'types/reducers';
 import { ModuleCode, Semester } from 'types/modules';
@@ -13,6 +22,8 @@ import { State } from 'types/state';
 import {
   addFriend,
   addFriendModule,
+  addFriendTaModule,
+  disableFriendTaModule,
   removeFriend,
   removeFriendModule,
   renameFriend,
@@ -54,9 +65,11 @@ const FriendModule: FC<FriendModuleProps> = ({
   colorIndex,
   horizontalOrientation,
 }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<Dispatch>();
   const module = useSelector(({ moduleBank }: State) => moduleBank.modules[moduleCode]);
+  const isTa = !!friend.ta?.[semester]?.includes(moduleCode);
   const removeBtnLabel = `Remove ${moduleCode} from ${friend.name}'s timetable`;
+  const taBtnLabel = `${isTa ? 'Disable' : 'Enable'} TA for ${moduleCode} for ${friend.name}`;
 
   return (
     <div
@@ -67,7 +80,11 @@ const FriendModule: FC<FriendModuleProps> = ({
       )}
     >
       <div className={tableStyles.moduleColor}>
-        <span className={classnames('btn', `color-${colorIndex}`, styles.color)} />
+        <span
+          className={classnames('btn', `color-${colorIndex}`, styles.color, {
+            [styles.colorTa]: isTa,
+          })}
+        />
       </div>
       <div className={tableStyles.moduleInfo}>
         <div className={tableStyles.moduleActionButtons}>
@@ -83,6 +100,30 @@ const FriendModule: FC<FriendModuleProps> = ({
                 onClick={() => dispatch(removeFriendModule(friend.id, semester, moduleCode))}
               >
                 <Trash className={tableStyles.actionIcon} />
+              </button>
+            </Tooltip>
+            <Tooltip content={taBtnLabel} touch={['hold', 50]}>
+              <button
+                type="button"
+                className={classnames(
+                  'btn btn-outline-secondary btn-svg',
+                  tableStyles.moduleAction,
+                )}
+                aria-label={taBtnLabel}
+                aria-pressed={isTa}
+                onClick={() =>
+                  dispatch(
+                    isTa
+                      ? disableFriendTaModule(friend.id, semester, moduleCode)
+                      : addFriendTaModule(friend.id, semester, moduleCode),
+                  )
+                }
+              >
+                {isTa ? (
+                  <BookOpen className={tableStyles.actionIcon} />
+                ) : (
+                  <Book className={tableStyles.actionIcon} />
+                )}
               </button>
             </Tooltip>
           </div>

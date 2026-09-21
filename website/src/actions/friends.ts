@@ -3,14 +3,19 @@ import qs from 'query-string';
 
 import type { ModuleLessonConfig, SemTimetableConfig } from 'types/timetables';
 import type { Dispatch, GetState } from 'types/redux';
-import type { Module, ModuleCode, Semester } from 'types/modules';
+import type { LessonIndex, LessonType, Module, ModuleCode, Semester } from 'types/modules';
 
 import { fetchModule } from 'actions/moduleBank';
 import { openNotification } from 'actions/app';
 import { fetchModules } from 'actions/timetables';
 import { parseShareLink } from 'utils/friends';
-import { deserializeTimetable, randomModuleLessonConfig } from 'utils/timetables';
-import { getModuleTimetable } from 'utils/modules';
+import {
+  deserializeTimetable,
+  getClosestLessonConfig,
+  makeLessonIndicesMap,
+  randomModuleLessonConfig,
+} from 'utils/timetables';
+import { getModuleSemesterData, getModuleTimetable } from 'utils/modules';
 
 export const ADD_FRIEND = 'ADD_FRIEND' as const;
 export function addFriend(name: string) {
@@ -46,10 +51,12 @@ export function setFriendTimetable(
   friendId: string,
   semester: Semester,
   timetable: SemTimetableConfig,
+  // The courses in the timetable that the friend is a TA for
+  taModules: ModuleCode[] = [],
 ) {
   return {
     type: SET_FRIEND_TIMETABLE,
-    payload: { friendId, semester, timetable },
+    payload: { friendId, semester, timetable, taModules },
   };
 }
 
@@ -80,6 +87,85 @@ export function removeFriendModule(friendId: string, semester: Semester, moduleC
   return {
     type: REMOVE_FRIEND_MODULE,
     payload: { friendId, semester, moduleCode },
+  };
+}
+
+// Adds a class to, or removes a class from, a lesson type of a course that the friend is a TA
+// for, without changing the other classes that they are in
+export const ADD_FRIEND_LESSON = 'ADD_FRIEND_LESSON' as const;
+export function addFriendLesson(
+  friendId: string,
+  semester: Semester,
+  moduleCode: ModuleCode,
+  lessonType: LessonType,
+  lessonIndices: LessonIndex[],
+) {
+  return {
+    type: ADD_FRIEND_LESSON,
+    payload: { friendId, semester, moduleCode, lessonType, lessonIndices },
+  };
+}
+
+export const REMOVE_FRIEND_LESSON = 'REMOVE_FRIEND_LESSON' as const;
+export function removeFriendLesson(
+  friendId: string,
+  semester: Semester,
+  moduleCode: ModuleCode,
+  lessonType: LessonType,
+  lessonIndices: LessonIndex[],
+) {
+  return {
+    type: REMOVE_FRIEND_LESSON,
+    payload: { friendId, semester, moduleCode, lessonType, lessonIndices },
+  };
+}
+
+// The classes a friend is in do not change when they become a TA, since being in one class of
+// each type of lesson is also fine for a TA
+export const ADD_FRIEND_TA_MODULE = 'ADD_FRIEND_TA_MODULE' as const;
+export function addFriendTaModule(friendId: string, semester: Semester, moduleCode: ModuleCode) {
+  return {
+    type: ADD_FRIEND_TA_MODULE,
+    payload: { friendId, semester, moduleCode },
+  };
+}
+
+// Only use this through disableFriendTaModule, which works out the lesson config
+export const REMOVE_FRIEND_TA_MODULE = 'REMOVE_FRIEND_TA_MODULE' as const;
+export function removeFriendTaModule(
+  friendId: string,
+  semester: Semester,
+  moduleCode: ModuleCode,
+  lessonConfig: ModuleLessonConfig,
+) {
+  return {
+    type: REMOVE_FRIEND_TA_MODULE,
+    payload: { friendId, semester, moduleCode, lessonConfig },
+  };
+}
+
+/**
+ * Stops a friend being a TA for a course. They can only be in one class of each type of lesson
+ * otherwise, so they are put in the classes that are closest to the ones they were in.
+ */
+export function disableFriendTaModule(
+  friendId: string,
+  semester: Semester,
+  moduleCode: ModuleCode,
+) {
+  return (dispatch: Dispatch, getState: GetState) => {
+    const { moduleBank, friends } = getState();
+    const friend = friends.friends.find(({ id }) => id === friendId);
+    const lessonConfig = friend?.timetable[semester]?.[moduleCode] ?? {};
+
+    // Without the module data there is nothing to check the classes against, so they are kept
+    const module: Module | undefined = moduleBank.modules[moduleCode];
+    const semesterData = module && getModuleSemesterData(module, semester);
+    const closestLessonConfig = semesterData
+      ? getClosestLessonConfig(makeLessonIndicesMap(semesterData.timetable), lessonConfig)
+      : lessonConfig;
+
+    dispatch(removeFriendTaModule(friendId, semester, moduleCode, closestLessonConfig));
   };
 }
 
@@ -125,7 +211,7 @@ export function syncFriend(friendId: string, link: string) {
     }
 
     const { semester, search } = parsedLink;
-    // Hidden and TA courses are how the sender set up their own timetable, so are not needed
+    // How the sender hid courses is not needed, but the courses they are a TA for are kept
     const moduleCodes = Object.keys(omit(qs.parse(search), ['hidden', 'ta']));
 
     try {
@@ -138,7 +224,7 @@ export function syncFriend(friendId: string, link: string) {
     }
 
     const { modules } = getState().moduleBank;
-    const { semTimetableConfig } = deserializeTimetable(search, (moduleCode) =>
+    const { semTimetableConfig, ta } = deserializeTimetable(search, (moduleCode) =>
       modules[moduleCode] ? getModuleTimetable(modules[moduleCode], semester) : [],
     );
 
@@ -150,7 +236,14 @@ export function syncFriend(friendId: string, link: string) {
       throw new Error('None of the courses in this link are held in that semester');
     }
 
-    dispatch(setFriendTimetable(friendId, semester, timetable));
+    dispatch(
+      setFriendTimetable(
+        friendId,
+        semester,
+        timetable,
+        ta.filter((moduleCode) => moduleCode in timetable),
+      ),
+    );
 
     return {
       semester,

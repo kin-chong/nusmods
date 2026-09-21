@@ -25,7 +25,7 @@ import {
   removeModule,
   resetTimetable,
 } from 'actions/timetables';
-import { setFriendModule } from 'actions/friends';
+import { addFriendLesson, removeFriendLesson, setFriendModule } from 'actions/friends';
 import { formatExamDate, getExamDate } from 'utils/modules';
 import {
   arrangeLessonsForWeek,
@@ -109,6 +109,20 @@ type Props = OwnProps & {
     semester: Semester,
     moduleCode: ModuleCode,
     lessonConfig: ModuleLessonConfig,
+  ) => void;
+  addFriendLesson: (
+    friendId: string,
+    semester: Semester,
+    moduleCode: ModuleCode,
+    lessonType: LessonType,
+    lessonIndices: LessonIndex[],
+  ) => void;
+  removeFriendLesson: (
+    friendId: string,
+    semester: Semester,
+    moduleCode: ModuleCode,
+    lessonType: LessonType,
+    lessonIndices: LessonIndex[],
   ) => void;
 };
 
@@ -219,6 +233,31 @@ class TimetableContent extends React.Component<Props, State> {
     }
 
     const friend = friends.find(({ id }) => id === activeFriendLesson.friendId);
+
+    // A friend that is a TA can be in several classes, so a class is added or removed instead of
+    // swapped, one at a time, like for the user's own lessons
+    if (friend && friendId === friend.id && lesson.isTaInTimetable) {
+      const { moduleCode, lessonType, lessonIndex } = lesson;
+      const selectedLessons = friendsLessons.filter(
+        (friendLesson) =>
+          friendLesson.friendId === friendId &&
+          friendLesson.moduleCode === moduleCode &&
+          !friendLesson.canBeAddedToLessonConfig,
+      );
+
+      if (lesson.canBeAddedToLessonConfig) {
+        this.props.addFriendLesson(friend.id, semester, moduleCode, lessonType, [lessonIndex]);
+      } else if (selectedLessons.length > 1) {
+        // The last lesson is not removed, as it could not be added back afterwards
+        this.props.removeFriendLesson(friend.id, semester, moduleCode, lessonType, [lessonIndex]);
+      } else {
+        this.setState({ activeFriendLesson: null });
+      }
+
+      resetScrollPosition();
+      return;
+    }
+
     if (friend && friendId === friend.id && lesson.canBeAddedToLessonConfig) {
       const { moduleCode, lessonType, classNo } = lesson;
       const lessonIndices = friendsLessons
@@ -619,4 +658,6 @@ export default connect(mapStateToProps, {
   removeLesson,
   cancelModifyLesson,
   setFriendModule,
+  addFriendLesson,
+  removeFriendLesson,
 })(TimetableContent);

@@ -7,7 +7,7 @@ import { applyMiddleware, createStore } from 'redux';
 import thunk from 'redux-thunk';
 
 import { FETCH_MODULE_LIST } from 'actions/constants';
-import { addFriend } from 'actions/friends';
+import { addFriend, addFriendTaModule, setFriendModule } from 'actions/friends';
 import requestsMiddleware, { SUCCESS_KEY } from 'middlewares/requests-middleware';
 import reducers from 'reducers';
 import { mockDom, mockDomReset } from 'test-utils/mockDom';
@@ -35,6 +35,19 @@ function make(...friendNames: string[]) {
   );
 
   return store;
+}
+
+// Modules are fetched from the mock data instead of the API, and every module is CS4243
+function mockCs4243Api() {
+  const mockAxiosRequest = jest.spyOn(axios, 'request');
+  mockAxiosRequest.mockResolvedValue({
+    data: CS4243,
+    status: 200,
+    statusText: 'Ok',
+    headers: {},
+    config: { headers: new AxiosHeaders() },
+  });
+  return mockAxiosRequest;
 }
 
 const getNames = (store: ReturnType<typeof make>) =>
@@ -199,14 +212,7 @@ describe(FriendsPanel, () => {
     let mockAxiosRequest: jest.SpiedFunction<typeof axios.request>;
 
     beforeEach(() => {
-      mockAxiosRequest = jest.spyOn(axios, 'request');
-      mockAxiosRequest.mockResolvedValue({
-        data: CS4243,
-        status: 200,
-        statusText: 'Ok',
-        headers: {},
-        config: { headers: new AxiosHeaders() },
-      });
+      mockAxiosRequest = mockCs4243Api();
     });
 
     afterEach(() => {
@@ -297,6 +303,69 @@ describe(FriendsPanel, () => {
 
       expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
       expect(mockAxiosRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('courses that a friend is a TA for', () => {
+    let mockAxiosRequest: jest.SpiedFunction<typeof axios.request>;
+
+    beforeEach(() => {
+      mockAxiosRequest = mockCs4243Api();
+    });
+
+    afterEach(() => {
+      mockAxiosRequest.mockRestore();
+    });
+
+    const classes = makeLessonIndicesMap(getModuleTimetable(CS4243, 1));
+    const cs4243Classes = mapValues(classes, (byClass) => Object.values(byClass)[0]);
+    const enableLabel = 'Enable TA for CS4243 for Alice';
+    const disableLabel = 'Disable TA for CS4243 for Alice';
+
+    // A store where Alice has CS4243, with the data of the module loaded by the panel
+    async function makeWithCourse(config: Record<string, number[]>) {
+      const store = make('Alice');
+      store.dispatch(setFriendModule(store.getState().friends.friends[0].id, 1, 'CS4243', config));
+      await waitFor(() => expect(store.getState().moduleBank.modules.CS4243).toBeDefined());
+      return store;
+    }
+
+    const getAlice = (store: ReturnType<typeof make>) => store.getState().friends.friends[0];
+
+    test('should have a button to turn TA on for each course, that is off at first', async () => {
+      await makeWithCourse(cs4243Classes);
+
+      expect(screen.getByLabelText(enableLabel)).toHaveAttribute('aria-pressed', 'false');
+      expect(document.querySelector('.colorTa')).not.toBeInTheDocument();
+    });
+
+    test('should make the friend a TA for the course when it is clicked, and show it', async () => {
+      const store = await makeWithCourse(cs4243Classes);
+
+      await userEvent.click(screen.getByLabelText(enableLabel));
+
+      expect(getAlice(store).ta).toEqual({ 1: ['CS4243'] });
+      // Their classes are the same as before
+      expect(getAlice(store).timetable[1].CS4243).toEqual(cs4243Classes);
+      expect(screen.getByLabelText(disableLabel)).toHaveAttribute('aria-pressed', 'true');
+      expect(document.querySelector('.colorTa')).toBeInTheDocument();
+    });
+
+    test('should put the friend in one class of each lesson type when it is turned off', async () => {
+      const store = await makeWithCourse({
+        ...cs4243Classes,
+        Laboratory: [...classes.Laboratory['2'], ...classes.Laboratory['4']],
+      });
+      store.dispatch(addFriendTaModule(getAlice(store).id, 1, 'CS4243'));
+
+      await userEvent.click(await screen.findByLabelText(disableLabel));
+
+      expect(getAlice(store).ta).toEqual({ 1: [] });
+      expect(Object.values(classes.Laboratory)).toContainEqual(
+        getAlice(store).timetable[1].CS4243.Laboratory,
+      );
+      expect(screen.getByLabelText(enableLabel)).toHaveAttribute('aria-pressed', 'false');
+      expect(document.querySelector('.colorTa')).not.toBeInTheDocument();
     });
   });
 

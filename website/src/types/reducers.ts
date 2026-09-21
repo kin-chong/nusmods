@@ -139,6 +139,9 @@ export type Friend = {
   readonly name: string;
   // Hidden friends are left off the timetable, but their courses are kept
   readonly hidden?: boolean;
+  // The courses that the friend is a TA for in each semester. A TA is in several classes of a type
+  // of lesson instead of one, so their lessons are added and removed instead of swapped
+  readonly ta?: { readonly [semester: number]: readonly ModuleCode[] };
   // The friend's lessons for each semester, in the same format as the user's own timetable
   readonly timetable: { readonly [semester: number]: SemTimetableConfig };
 };
