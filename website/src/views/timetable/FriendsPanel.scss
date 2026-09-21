@@ -43,10 +43,35 @@
   flex: 1;
 }
 
-.renameButton {
+// Pushes the buttons to the right, with the eye next to the name
+.spacer {
+  flex: 1;
+}
+
+.headerButton {
   margin-right: 0.5rem;
-  // Keeps the buttons on the right, with the eye next to the name
-  margin-left: auto;
+}
+
+.linkForm {
+  margin-bottom: 1rem;
+}
+
+.linkRow {
+  display: flex;
+  margin-bottom: 0.25rem;
+
+  input {
+    margin-right: 0.5rem;
+  }
+
+  button {
+    flex-shrink: 0;
+    margin-left: 0.5rem;
+  }
+
+  input + button {
+    margin-left: 0;
+  }
 }
 
 .visibilityButton {

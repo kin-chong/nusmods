@@ -10,6 +10,7 @@ import {
   RENAME_FRIEND,
   SET_FRIEND_HIDDEN,
   SET_FRIEND_MODULE,
+  SET_FRIEND_TIMETABLE,
 } from 'actions/friends';
 import config from 'config';
 
@@ -100,6 +101,15 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
           ...friend.timetable,
           [semester]: { ...friend.timetable[semester], [moduleCode]: moduleLessonConfig },
         },
+      }));
+    }
+
+    case SET_FRIEND_TIMETABLE: {
+      const { friendId, semester, timetable } = action.payload;
+
+      return updateFriend(state, friendId, (friend) => ({
+        ...friend,
+        timetable: { ...friend.timetable, [semester]: timetable },
       }));
     }
 

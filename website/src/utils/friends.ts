@@ -1,4 +1,5 @@
 import { flatMap, union, keys } from 'lodash';
+import { semesterForTimetablePage, TIMETABLE_SHARE } from 'views/routes/paths';
 
 import {
   ActiveFriendLesson,
@@ -17,6 +18,25 @@ import {
   hydrateSemTimetableWithLessons,
   timetableLessonsArray,
 } from 'utils/timetables';
+
+/**
+ * Read a link to a shared timetable, like `/timetable/sem-1/share?CS1010S=LEC:(0)`.
+ * Returns the semester that the link is for and its query string, or null if it is not one.
+ */
+export function parseShareLink(link: string): { semester: Semester; search: string } | null {
+  let url: URL;
+  try {
+    url = new URL(link.trim());
+  } catch {
+    return null;
+  }
+
+  const [, page, semesterPath, action] = url.pathname.split('/');
+  const semester = semesterForTimetablePage(semesterPath);
+  if (page !== 'timetable' || action !== TIMETABLE_SHARE || !semester) return null;
+
+  return { semester, search: url.search };
+}
 
 /**
  * Get the colors of every module the user or their friends take, so that a module has the same

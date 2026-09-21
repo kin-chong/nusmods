@@ -73,6 +73,22 @@ test('friends can be hidden and shown again without losing their timetable', () 
   expect(shown.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
 });
 
+test('the courses of a friend in a semester can be replaced', () => {
+  const state = withFriends('Alice', 'Bob');
+  const [alice, bob] = state.friends;
+  const replacement = { CS2030: { Lecture: [2] } };
+
+  const nextState = [
+    actions.setFriendModule(alice.id, 1, 'CS1010S', lessonConfig),
+    actions.setFriendModule(alice.id, 2, 'CS2040', lessonConfig),
+    actions.setFriendTimetable(alice.id, 1, replacement),
+  ].reduce(reducer, state);
+
+  // The semester that was replaced only has the new courses, and the other semester is kept
+  expect(nextState.friends[0].timetable).toEqual({ 1: replacement, 2: { CS2040: lessonConfig } });
+  expect(nextState.friends[1]).toBe(bob);
+});
+
 test('modules can be set for a friend in a semester', () => {
   const state = withFriends('Alice', 'Bob');
   const [alice, bob] = state.friends;

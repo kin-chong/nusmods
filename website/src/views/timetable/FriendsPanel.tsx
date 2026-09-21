@@ -1,12 +1,13 @@
-import { FC, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FC, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import classnames from 'classnames';
 import { flatMap, keys, noop } from 'lodash';
-import { Edit2, Eye, EyeOff, Trash } from 'react-feather';
+import { Edit2, Eye, EyeOff, Link as LinkIcon, Trash } from 'react-feather';
 
 import { ColorMapping, Friend, ModuleSelectList } from 'types/reducers';
 import { ModuleCode, Semester } from 'types/modules';
+import type { Dispatch } from 'types/redux';
 import { State } from 'types/state';
 
 import {
@@ -16,11 +17,14 @@ import {
   removeFriendModule,
   renameFriend,
   setFriendHidden,
+  syncFriend,
 } from 'actions/friends';
+import { openNotification } from 'actions/app';
 import { fetchModules } from 'actions/timetables';
 import { intersperse } from 'utils/array';
 import { createSearchPredicate, sortModules } from 'utils/moduleSearch';
 import { BULLET_NBSP } from 'utils/react';
+import config from 'config';
 import Online from 'views/components/Online';
 import Tooltip from 'views/components/Tooltip';
 import { modulePage } from 'views/routes/paths';
@@ -105,10 +109,11 @@ const FriendModule: FC<FriendModuleProps> = ({
 };
 
 /**
- * A friend's name, which turns into a text box to rename them when the edit button is clicked.
- * The name is saved by pressing Enter or clicking away, and Esc leaves it as it was.
+ * A friend's name and the buttons next to it. The name turns into a text box to rename them when
+ * the edit button is clicked. The name is saved by pressing Enter or clicking away, and Esc leaves
+ * it as it was. The children are shown as buttons before the edit button, on the right.
  */
-const FriendName: FC<{ friend: Friend }> = ({ friend }) => {
+const FriendName: FC<{ friend: Friend; children?: ReactNode }> = ({ friend, children }) => {
   const dispatch = useDispatch();
   // The name being typed, which is null when the friend is not being renamed
   const [draft, setDraft] = useState<string | null>(null);
@@ -139,9 +144,11 @@ const FriendName: FC<{ friend: Friend }> = ({ friend }) => {
         >
           {friend.hidden ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
+        <span className={styles.spacer} />
+        {children}
         <button
           type="button"
-          className={classnames('btn btn-outline-secondary btn-svg', styles.renameButton)}
+          className={classnames('btn btn-outline-secondary btn-svg', styles.headerButton)}
           aria-label={`Rename ${friend.name}`}
           title={`Rename ${friend.name}`}
           onClick={() => setDraft(friend.name)}
@@ -177,6 +184,91 @@ const FriendName: FC<{ friend: Friend }> = ({ friend }) => {
   );
 };
 
+/**
+ * A box to paste the link that a friend shared to fill in the courses they take. The link is the
+ * one that the Share/Sync button on the timetable page gives.
+ */
+const FriendLinkForm: FC<{ friend: Friend; onClose: () => void }> = ({ friend, onClose }) => {
+  const dispatch = useDispatch<Dispatch>();
+  const [link, setLink] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const onSubmit = async (evt: FormEvent) => {
+    evt.preventDefault();
+
+    const trimmedLink = link.trim();
+    if (!trimmedLink) return;
+
+    setIsSyncing(true);
+    setError(null);
+    try {
+      const { semester, moduleCount, skippedCount } = await dispatch(
+        syncFriend(friend.id, trimmedLink),
+      );
+
+      const courses = `${moduleCount} ${moduleCount === 1 ? 'course' : 'courses'}`;
+      const skipped = skippedCount > 0 ? ` (${skippedCount} not found)` : '';
+      dispatch(
+        openNotification(
+          `${friend.name} now has ${courses} for ${config.semesterNames[semester]}${skipped}`,
+          { overwritable: true },
+        ),
+      );
+      onClose();
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : 'Something went wrong');
+      setIsSyncing(false);
+    }
+  };
+
+  return (
+    <form className={styles.linkForm} onSubmit={onSubmit}>
+      <div className={styles.linkRow}>
+        <input
+          ref={inputRef}
+          type="text"
+          className={classnames('form-control', { 'is-invalid': error })}
+          placeholder={`Paste the link ${friend.name} sent you`}
+          aria-label={`Shared timetable link for ${friend.name}`}
+          value={link}
+          onChange={(evt) => {
+            setLink(evt.target.value);
+            setError(null);
+          }}
+          onKeyDown={(evt) => {
+            if (evt.key === 'Escape') onClose();
+          }}
+        />
+        <button
+          type="submit"
+          className="btn btn-outline-primary"
+          disabled={!link.trim() || isSyncing}
+        >
+          {isSyncing ? 'Syncing…' : 'Sync'}
+        </button>
+        <button type="button" className="btn btn-outline-secondary" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+      {error ? (
+        <div role="alert" className="text-danger">
+          {error}
+        </div>
+      ) : (
+        <small className="text-muted">
+          This replaces the courses {friend.name} has in the semester of the link.
+        </small>
+      )}
+    </form>
+  );
+};
+
 type FriendCourseListProps = {
   friend: Friend;
   semester: Semester;
@@ -195,6 +287,7 @@ const FriendCourseList: FC<FriendCourseListProps> = ({
 }) => {
   const dispatch = useDispatch();
   const moduleList = useSelector(({ moduleBank }: State) => moduleBank.moduleList);
+  const [isLinkOpen, setIsLinkOpen] = useState(false);
   const timetable = friend.timetable[semester];
 
   const selectList: ModuleSelectList = useMemo(
@@ -220,7 +313,21 @@ const FriendCourseList: FC<FriendCourseListProps> = ({
   return (
     <section className={classnames(styles.friend, { [styles.friendHidden]: friend.hidden })}>
       <header className={styles.friendHeader}>
-        <FriendName friend={friend} />
+        <FriendName friend={friend}>
+          <button
+            type="button"
+            className={classnames('btn btn-outline-primary btn-svg', styles.headerButton, {
+              active: isLinkOpen,
+            })}
+            aria-label={`Sync via link for ${friend.name}`}
+            title={`Sync ${friend.name}'s courses using a link they shared`}
+            aria-expanded={isLinkOpen}
+            onClick={() => setIsLinkOpen(!isLinkOpen)}
+          >
+            <LinkIcon className="svg svg-small" />
+            Sync via link
+          </button>
+        </FriendName>
         <button
           type="button"
           className="btn btn-outline-secondary btn-svg"
@@ -231,6 +338,8 @@ const FriendCourseList: FC<FriendCourseListProps> = ({
           <Trash size={16} />
         </button>
       </header>
+
+      {isLinkOpen && <FriendLinkForm friend={friend} onClose={() => setIsLinkOpen(false)} />}
 
       <Online>
         {(isOnline) => (
@@ -284,7 +393,7 @@ type Props = {
  * compared on the same timetable. Everything stays in the browser - nothing is sent to friends.
  */
 const FriendsPanel: FC<Props> = ({ semester, colors, horizontalOrientation }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<Dispatch>();
   const friends = useSelector(({ friends: friendsState }: State) => friendsState.friends);
   const modules = useSelector(({ moduleBank }: State) => moduleBank.modules);
   const [name, setName] = useState('');
@@ -299,7 +408,7 @@ const FriendsPanel: FC<Props> = ({ semester, colors, horizontalOrientation }) =>
     );
 
     if (missing.size) {
-      Promise.resolve(dispatch(fetchModules(missing))).catch(noop);
+      dispatch(fetchModules(missing)).catch(noop);
     }
   }, [friends, modules, semester, dispatch]);
 

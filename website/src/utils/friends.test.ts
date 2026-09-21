@@ -10,6 +10,7 @@ import {
   getFriendLessons,
   getFriendsLessons,
   getSharedColors,
+  parseShareLink,
 } from 'utils/friends';
 import { getModuleTimetable } from 'utils/modules';
 import { makeLessonIndicesMap } from 'utils/timetables';
@@ -154,5 +155,36 @@ describe('friends lessons', () => {
     const firstBobRow = rowOwners.findIndex((owners) => owners.has('bob'));
     expect(rowOwners.slice(firstBobRow).every((owners) => owners.has('bob'))).toBe(true);
     expect(rows.every((row) => row.length > 0)).toBe(true);
+  });
+});
+
+describe(parseShareLink, () => {
+  test('should read the semester and lessons from a link to a shared timetable', () => {
+    expect(
+      parseShareLink(
+        'http://localhost:8080/timetable/sem-1/share?CS3103=LAB:(9);LEC:(12)&EC2102=TUT:(7)',
+      ),
+    ).toEqual({ semester: 1, search: '?CS3103=LAB:(9);LEC:(12)&EC2102=TUT:(7)' });
+    expect(parseShareLink('https://nusmods.com/timetable/sem-2/share?CS1010S=LEC:(0)')).toEqual({
+      semester: 2,
+      search: '?CS1010S=LEC:(0)',
+    });
+  });
+
+  test('should ignore spaces around the link', () => {
+    expect(parseShareLink('  https://nusmods.com/timetable/sem-1/share?CS1010S=LEC:(0)\n')).toEqual(
+      { semester: 1, search: '?CS1010S=LEC:(0)' },
+    );
+  });
+
+  test.each([
+    ['text that is not a link', 'CS1010S LEC 1'],
+    ['an empty link', ''],
+    ['a link to a page that is not a timetable', 'https://nusmods.com/courses/CS1010S'],
+    ['a link to the timetable that is not shared', 'https://nusmods.com/timetable/sem-1'],
+    ['a link to a semester that does not exist', 'https://nusmods.com/timetable/sem-9/share?A=B'],
+    ['a link with no semester', 'https://nusmods.com/timetable//share?CS1010S=LEC:(0)'],
+  ])('should not accept %s', (_description, link) => {
+    expect(parseShareLink(link)).toBeNull();
   });
 });
