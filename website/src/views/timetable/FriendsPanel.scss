@@ -25,6 +25,14 @@
   margin-top: 1rem;
 }
 
+// The courses are still there, they are just not shown in the timetable
+.friendHidden {
+  .friendName,
+  .color {
+    opacity: 0.5;
+  }
+}
+
 .friendHeader {
   display: flex;
   align-items: center;
@@ -37,11 +45,18 @@
 
 .renameButton {
   margin-right: 0.5rem;
+  // Keeps the buttons on the right, with the eye next to the name
+  margin-left: auto;
+}
+
+.visibilityButton {
+  flex-shrink: 0;
+  margin-left: 0.25rem;
 }
 
 .friendName {
   overflow: hidden;
-  flex: 1;
+  min-width: 0;
   margin: 0;
   text-overflow: ellipsis;
   white-space: nowrap;

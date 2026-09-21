@@ -455,8 +455,9 @@ class TimetableContent extends React.Component<Props, State> {
     // Friends are only overlaid on the user's own timetable, not on shared timetables
     const shownFriends = readOnly ? [] : friends;
     const friendColors = getSharedColors(this.props.timetable, colors, shownFriends, semester);
+    const visibleFriends = shownFriends.filter((friend) => !friend.hidden);
     const friendsLessons = getFriendsLessons(
-      shownFriends,
+      visibleFriends,
       modules,
       semester,
       friendColors,
@@ -464,7 +465,7 @@ class TimetableContent extends React.Component<Props, State> {
     );
     const arrangedLessons = arrangeFriendLanes(
       arrangeLessonsForWeek(interactableLesson),
-      shownFriends,
+      visibleFriends,
       friendsLessons,
     );
 

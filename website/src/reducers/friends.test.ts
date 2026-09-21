@@ -54,6 +54,25 @@ test('friends can be renamed without affecting their timetable or other friends'
   expect(nextState.friends[1]).toBe(bob);
 });
 
+test('friends can be hidden and shown again without losing their timetable', () => {
+  const state = withFriends('Alice', 'Bob');
+  const [alice, bob] = state.friends;
+
+  const hidden = [
+    actions.setFriendModule(alice.id, 1, 'CS1010S', lessonConfig),
+    actions.setFriendHidden(alice.id, true),
+  ].reduce(reducer, state);
+
+  expect(hidden.friends[0].hidden).toBe(true);
+  expect(hidden.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
+  // Other friends should not be affected
+  expect(hidden.friends[1]).toBe(bob);
+
+  const shown = reducer(hidden, actions.setFriendHidden(alice.id, false));
+  expect(shown.friends[0].hidden).toBe(false);
+  expect(shown.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
+});
+
 test('modules can be set for a friend in a semester', () => {
   const state = withFriends('Alice', 'Bob');
   const [alice, bob] = state.friends;

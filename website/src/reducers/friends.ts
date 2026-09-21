@@ -8,6 +8,7 @@ import {
   REMOVE_FRIEND,
   REMOVE_FRIEND_MODULE,
   RENAME_FRIEND,
+  SET_FRIEND_HIDDEN,
   SET_FRIEND_MODULE,
 } from 'actions/friends';
 import config from 'config';
@@ -76,6 +77,12 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
       const { friendId, name } = action.payload;
 
       return updateFriend(state, friendId, (friend) => ({ ...friend, name }));
+    }
+
+    case SET_FRIEND_HIDDEN: {
+      const { friendId, hidden } = action.payload;
+
+      return updateFriend(state, friendId, (friend) => ({ ...friend, hidden }));
     }
 
     case REMOVE_FRIEND:

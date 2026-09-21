@@ -137,6 +137,8 @@ export type TimetablesState = {
 export type Friend = {
   readonly id: string;
   readonly name: string;
+  // Hidden friends are left off the timetable, but their courses are kept
+  readonly hidden?: boolean;
   // The friend's lessons for each semester, in the same format as the user's own timetable
   readonly timetable: { readonly [semester: number]: SemTimetableConfig };
 };

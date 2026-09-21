@@ -27,6 +27,14 @@ export function renameFriend(friendId: string, name: string) {
   };
 }
 
+export const SET_FRIEND_HIDDEN = 'SET_FRIEND_HIDDEN' as const;
+export function setFriendHidden(friendId: string, hidden: boolean) {
+  return {
+    type: SET_FRIEND_HIDDEN,
+    payload: { friendId, hidden },
+  };
+}
+
 export const REMOVE_FRIEND = 'REMOVE_FRIEND' as const;
 export function removeFriend(friendId: string) {
   return {

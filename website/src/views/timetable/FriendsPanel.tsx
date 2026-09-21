@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import classnames from 'classnames';
 import { flatMap, keys, noop } from 'lodash';
-import { Edit2, Trash } from 'react-feather';
+import { Edit2, Eye, EyeOff, Trash } from 'react-feather';
 
 import { ColorMapping, Friend, ModuleSelectList } from 'types/reducers';
 import { ModuleCode, Semester } from 'types/modules';
@@ -15,6 +15,7 @@ import {
   removeFriend,
   removeFriendModule,
   renameFriend,
+  setFriendHidden,
 } from 'actions/friends';
 import { fetchModules } from 'actions/timetables';
 import { intersperse } from 'utils/array';
@@ -130,6 +131,16 @@ const FriendName: FC<{ friend: Friend }> = ({ friend }) => {
         <h4 className={styles.friendName}>{friend.name}</h4>
         <button
           type="button"
+          className={classnames('btn btn-link btn-svg', styles.visibilityButton)}
+          aria-label={`${friend.hidden ? 'Show' : 'Hide'} ${friend.name} in timetable`}
+          title={`${friend.hidden ? 'Show' : 'Hide'} ${friend.name} in timetable`}
+          aria-pressed={!friend.hidden}
+          onClick={() => dispatch(setFriendHidden(friend.id, !friend.hidden))}
+        >
+          {friend.hidden ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+        <button
+          type="button"
           className={classnames('btn btn-outline-secondary btn-svg', styles.renameButton)}
           aria-label={`Rename ${friend.name}`}
           title={`Rename ${friend.name}`}
@@ -207,7 +218,7 @@ const FriendCourseList: FC<FriendCourseListProps> = ({
   const moduleCodes = keys(timetable);
 
   return (
-    <section className={styles.friend}>
+    <section className={classnames(styles.friend, { [styles.friendHidden]: friend.hidden })}>
       <header className={styles.friendHeader}>
         <FriendName friend={friend} />
         <button

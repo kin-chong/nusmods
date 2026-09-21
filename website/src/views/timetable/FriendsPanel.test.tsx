@@ -91,6 +91,27 @@ describe(FriendsPanel, () => {
     expect(getNames(store)).toEqual(['Alice']);
   });
 
+  test('should hide and show a friend in the timetable', async () => {
+    const store = make('Alice', 'Bob');
+    const isHidden = (index: number) => store.getState().friends.friends[index].hidden;
+
+    await userEvent.click(screen.getByLabelText('Hide Alice in timetable'));
+
+    expect(isHidden(0)).toBe(true);
+    expect(isHidden(1)).toBeFalsy();
+    expect(screen.getByLabelText('Show Alice in timetable')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    // Bob is not affected
+    expect(screen.getByLabelText('Hide Bob in timetable')).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(screen.getByLabelText('Show Alice in timetable'));
+
+    expect(isHidden(0)).toBe(false);
+    expect(screen.getByLabelText('Hide Alice in timetable')).toBeInTheDocument();
+  });
+
   test('should remove a friend', async () => {
     const store = make('Alice', 'Bob');
 
