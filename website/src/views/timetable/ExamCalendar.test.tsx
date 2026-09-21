@@ -111,6 +111,49 @@ describe(ExamCalendar, () => {
         .sort(),
     ).toEqual(['CS1010A', 'CS1010S', 'GES1021', 'PC1222']);
   });
+
+  describe('with the exams of friends', () => {
+    // CS1010S has an exam in this semester, and is taken by these friends as well
+    const withFriends = (overrides: Partial<ModuleWithColor>) =>
+      modulesWithColor.map((module) =>
+        module.moduleCode === 'CS1010S' ? { ...module, ...overrides } : module,
+      );
+    const names = (wrapper: ReturnType<typeof make>) => wrapper.find(`.${styles.friendNames}`);
+
+    test('should not show any names when only the user has the exams', () => {
+      expect(names(make(modulesWithColor))).toHaveLength(0);
+    });
+
+    test('should show who has the exam when friends have it as well as the user', () => {
+      const wrapper = make(withFriends({ friendNames: ['Alice', 'Bob'] }));
+
+      expect(names(wrapper)).toHaveLength(1);
+      expect(names(wrapper).text()).toEqual('You, Alice, Bob');
+    });
+
+    test('should only show the friends when the user does not have the exam', () => {
+      const wrapper = make(withFriends({ friendNames: ['Alice'], isFriendOnly: true }));
+
+      expect(names(wrapper).text()).toEqual('Alice');
+    });
+
+    test('should show a module that only friends take with the others', () => {
+      // GER1000 is added like a module that only friends take
+      const friendOnly = {
+        ...(GER1000 as unknown as ModuleWithColor),
+        colorIndex: 4,
+        isHiddenInTimetable: false,
+        isTaInTimetable: false,
+        friendNames: ['Alice'],
+        isFriendOnly: true,
+      };
+
+      const wrapper = make([...modulesWithColor, friendOnly]);
+
+      expect(wrapper.find(Link)).toHaveLength(6);
+      expect(names(wrapper).text()).toEqual('Alice');
+    });
+  });
 });
 
 describe(getTimeSegment, () => {

@@ -55,6 +55,10 @@ export type ModuleWithColor = Module & {
   colorIndex: ColorIndex;
   isHiddenInTimetable: boolean;
   isTaInTimetable: boolean;
+  // The friends that take the module too, for the exam calendar, which shows their exams
+  friendNames?: readonly string[];
+  // Only friends take the module, and not the user
+  isFriendOnly?: boolean;
 };
 
 export type TombstoneModule = ModuleWithColor & {

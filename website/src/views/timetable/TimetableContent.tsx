@@ -36,7 +36,12 @@ import {
   hydrateSemTimetableWithLessons,
   timetableLessonsArray,
 } from 'utils/timetables';
-import { arrangeFriendLanes, getFriendsLessons, getSharedColors } from 'utils/friends';
+import {
+  addFriendsToExams,
+  arrangeFriendLanes,
+  getFriendsLessons,
+  getSharedColors,
+} from 'utils/friends';
 import { resetScrollPosition } from 'utils/react';
 import ModulesSelectContainer from 'views/timetable/ModulesSelectContainer';
 import Announcements from 'views/components/notfications/Announcements';
@@ -540,12 +545,18 @@ class TimetableContent extends React.Component<Props, State> {
             {showExamCalendar ? (
               <ExamCalendar
                 semester={semester}
-                modules={addedModules.map((module) => ({
-                  ...module,
-                  colorIndex: this.props.colors[module.moduleCode],
-                  isHiddenInTimetable: this.isHiddenInTimetable(module.moduleCode),
-                  isTaInTimetable: this.isTaInTimetable(module.moduleCode),
-                }))}
+                modules={addFriendsToExams(
+                  addedModules.map((module) => ({
+                    ...module,
+                    colorIndex: this.props.colors[module.moduleCode],
+                    isHiddenInTimetable: this.isHiddenInTimetable(module.moduleCode),
+                    isTaInTimetable: this.isTaInTimetable(module.moduleCode),
+                  })),
+                  shownFriends,
+                  modules,
+                  semester,
+                  friendColors,
+                )}
               />
             ) : (
               <div

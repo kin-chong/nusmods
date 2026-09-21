@@ -24,15 +24,23 @@ function getExamDate(date: Date): string {
   return formatExamDate(date.toISOString()).split(' ')[0];
 }
 
-const ExamModule: React.FC<{ module: ModuleWithColor }> = ({ module }) => (
-  <Link
-    to={modulePage(module.moduleCode, module.title)}
-    className={`hoverable color-${module.colorIndex}`}
-  >
-    <div className={styles.moduleCode}>{module.moduleCode}</div>
-    <div className={styles.moduleTitle}>{module.title}</div>
-  </Link>
-);
+const ExamModule: React.FC<{ module: ModuleWithColor }> = ({ module }) => {
+  // Who has the exam, when it is not only the user
+  const names = module.friendNames?.length
+    ? [...(module.isFriendOnly ? [] : ['You']), ...module.friendNames]
+    : [];
+
+  return (
+    <Link
+      to={modulePage(module.moduleCode, module.title)}
+      className={`hoverable color-${module.colorIndex}`}
+    >
+      <div className={styles.moduleCode}>{module.moduleCode}</div>
+      <div className={styles.moduleTitle}>{module.title}</div>
+      {!!names.length && <div className={styles.friendNames}>{names.join(', ')}</div>}
+    </Link>
+  );
+};
 
 const ExamWeekComponent: React.FC<Props> = (props) => {
   const { modules, weekNumber, firstDayOfExams, days } = props;

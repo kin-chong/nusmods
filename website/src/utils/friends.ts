@@ -9,7 +9,8 @@ import {
   TimetableArrangement,
 } from 'types/timetables';
 import { ColorMapping, Friend, ModulesMap } from 'types/reducers';
-import { Semester } from 'types/modules';
+import { ModuleCode, Semester } from 'types/modules';
+import { ModuleWithColor } from 'types/views';
 
 import { fillColorMapping } from 'utils/colors';
 import {
@@ -122,4 +123,56 @@ export function arrangeFriendLanes<T extends ColoredLesson>(
       .filter((row) => row.length > 0);
   });
   return arrangement;
+}
+
+/**
+ * Add the exams of friends to the modules that the exam calendar is made from. A module that the
+ * user and friends take is one module that has the friends' names on it, and a module that only
+ * friends take is added. A friend that is hidden is left off like in the timetable, and a friend
+ * that is a TA for a module does not have an exam for it.
+ */
+export function addFriendsToExams(
+  ownModules: ModuleWithColor[],
+  friends: readonly Friend[],
+  modules: ModulesMap,
+  semester: Semester,
+  colors: ColorMapping,
+): ModuleWithColor[] {
+  const friendNames: Record<ModuleCode, string[]> = {};
+  friends
+    .filter((friend) => !friend.hidden)
+    .forEach((friend) => {
+      keys(friend.timetable[semester]).forEach((moduleCode) => {
+        if (friend.ta?.[semester]?.includes(moduleCode)) return;
+        friendNames[moduleCode] = [...(friendNames[moduleCode] ?? []), friend.name];
+      });
+    });
+
+  // The modules that the user has an exam for. The calendar leaves off the modules that they hid
+  // or are a TA for, so the friends that take those are shown on their own
+  const ownExams = new Set(
+    ownModules
+      .filter((module) => !module.isHiddenInTimetable && !module.isTaInTimetable)
+      .map((module) => module.moduleCode),
+  );
+
+  const sharedModules = ownModules.map((module) =>
+    ownExams.has(module.moduleCode) && friendNames[module.moduleCode]
+      ? { ...module, friendNames: friendNames[module.moduleCode] }
+      : module,
+  );
+
+  const friendOnlyModules: ModuleWithColor[] = keys(friendNames)
+    // The module data is needed for the exam, and is fetched when a friend has the module
+    .filter((moduleCode) => !ownExams.has(moduleCode) && modules[moduleCode])
+    .map((moduleCode) => ({
+      ...modules[moduleCode],
+      colorIndex: colors[moduleCode],
+      isHiddenInTimetable: false,
+      isTaInTimetable: false,
+      friendNames: friendNames[moduleCode],
+      isFriendOnly: true,
+    }));
+
+  return [...sharedModules, ...friendOnlyModules];
 }

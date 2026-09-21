@@ -1,11 +1,14 @@
 import { mapValues } from 'lodash';
 
+import { Module } from 'types/modules';
 import { Friend } from 'types/reducers';
+import { ModuleWithColor } from 'types/views';
 import { ActiveFriendLesson, SemTimetableConfig } from 'types/timetables';
 
-import { CS4243 } from '__mocks__/modules';
+import { CS1010S, CS4243, GES1021 } from '__mocks__/modules';
 import { NUM_DIFFERENT_COLORS } from 'utils/colors';
 import {
+  addFriendsToExams,
   arrangeFriendLanes,
   getFriendLessons,
   getFriendsLessons,
@@ -246,5 +249,121 @@ describe(parseShareLink, () => {
     ['a link with no semester', 'https://nusmods.com/timetable//share?CS1010S=LEC:(0)'],
   ])('should not accept %s', (_description, link) => {
     expect(parseShareLink(link)).toBeNull();
+  });
+});
+
+describe(addFriendsToExams, () => {
+  const semester = 1;
+  const modules = { CS4243, GES1021, CS1010S };
+  const colors = { CS4243: 1, GES1021: 2, CS1010S: 3 };
+
+  const ownModule = (
+    module: Module,
+    overrides: Partial<ModuleWithColor> = {},
+  ): ModuleWithColor => ({
+    ...module,
+    colorIndex: colors[module.moduleCode as keyof typeof colors],
+    isHiddenInTimetable: false,
+    isTaInTimetable: false,
+    ...overrides,
+  });
+
+  // The friends have courses in the semester of the tests, from the helper at the top
+  const friendWith = (
+    name: string,
+    moduleCodes: string[],
+    extra: Partial<Friend> = {},
+  ): Friend => ({ ...makeFriend(name, moduleCodes), ...extra });
+
+  const run = (ownModules: ModuleWithColor[], friends: Friend[]) =>
+    addFriendsToExams(ownModules, friends, modules, semester, colors);
+
+  test('should not change anything without friends', () => {
+    const own = [ownModule(CS4243), ownModule(GES1021)];
+
+    expect(run(own, [])).toEqual(own);
+  });
+
+  test('should put the names of friends on a module that the user and friends take', () => {
+    const [cs4243] = run(
+      [ownModule(CS4243)],
+      [friendWith('Alice', ['CS4243']), friendWith('Bob', ['CS4243', 'GES1021'])],
+    );
+
+    expect(cs4243.friendNames).toEqual(['Alice', 'Bob']);
+    expect(cs4243.isFriendOnly).toBeUndefined();
+  });
+
+  test('should add a module that only friends take, with the color that it has', () => {
+    const result = run([ownModule(CS4243)], [friendWith('Bob', ['CS4243', 'GES1021'])]);
+
+    expect(result).toHaveLength(2);
+    expect(result[1]).toMatchObject({
+      moduleCode: 'GES1021',
+      colorIndex: 2,
+      friendNames: ['Bob'],
+      isFriendOnly: true,
+      isHiddenInTimetable: false,
+      isTaInTimetable: false,
+    });
+  });
+
+  test('should leave alone the modules that no friend takes', () => {
+    const cs4243 = ownModule(CS4243);
+    const result = run([cs4243, ownModule(GES1021)], [friendWith('Alice', ['CS4243'])]);
+
+    expect(result[1]).toBe(result.find((module) => module.moduleCode === 'GES1021'));
+    expect(result[1].friendNames).toBeUndefined();
+  });
+
+  test('should leave off friends that are hidden', () => {
+    const result = run(
+      [ownModule(CS4243)],
+      [friendWith('Alice', ['CS4243', 'GES1021'], { hidden: true }), friendWith('Bob', ['CS4243'])],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].friendNames).toEqual(['Bob']);
+  });
+
+  test('should not count a friend for a module that they are a TA for', () => {
+    const alice = friendWith('Alice', ['CS4243', 'GES1021'], { ta: { [semester]: ['CS4243'] } });
+
+    const result = run([ownModule(CS4243)], [alice]);
+
+    // They have no exam for CS4243, but they do for GES1021
+    expect(result[0].friendNames).toBeUndefined();
+    expect(result.map((module) => module.moduleCode)).toEqual(['CS4243', 'GES1021']);
+  });
+
+  test('should show friends that take a module that the user hid or is a TA for', () => {
+    const friends = [friendWith('Alice', ['CS4243', 'GES1021'])];
+    const own = [
+      ownModule(CS4243, { isHiddenInTimetable: true }),
+      ownModule(GES1021, { isTaInTimetable: true }),
+    ];
+
+    const result = run(own, friends);
+
+    // The modules of the user are still there, and are left off the calendar because they are hidden
+    expect(result.slice(0, 2)).toEqual(own);
+    expect(result.slice(2)).toEqual([
+      expect.objectContaining({ moduleCode: 'CS4243', isFriendOnly: true, friendNames: ['Alice'] }),
+      expect.objectContaining({
+        moduleCode: 'GES1021',
+        isFriendOnly: true,
+        friendNames: ['Alice'],
+      }),
+    ]);
+  });
+
+  test('should skip modules that have not been loaded, and courses in other semesters', () => {
+    const friend: Friend = {
+      id: 'alice',
+      name: 'Alice',
+      timetable: { [semester]: { ZZ9999: {} }, 2: { CS1010S: {} } },
+    };
+
+    expect(run([], [friend])).toEqual([]);
   });
 });
