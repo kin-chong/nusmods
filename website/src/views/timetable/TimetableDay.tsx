@@ -67,7 +67,7 @@ const TimetableDay: React.FC<Props> = (props) => {
     rowStyle.height = `${(VERTICAL_HEIGHT_PER_HOUR / NUM_INTERVALS_PER_HOUR) * columns}rem`;
 
   return (
-    <li className={styles.day}>
+    <li className={classnames(styles.day, { [styles.compactDay]: props.compactView })}>
       <div
         className={classnames(styles.dayName, {
           [styles.dayNameScrolled]: props.isScrolledHorizontally,
@@ -75,7 +75,10 @@ const TimetableDay: React.FC<Props> = (props) => {
       >
         <span className={styles.dayNameText}>{props.day.substring(0, 3)}</span>
       </div>
-      <div className={styles.dayRows} style={rowStyle}>
+      <div
+        className={classnames(styles.dayRows, { [styles.compactDayRows]: props.compactView })}
+        style={rowStyle}
+      >
         <CurrentTimeIndicator style={props.currentTimeIndicatorStyle} />
 
         {props.dayLessonRows.map((dayLessonRow, i) => (

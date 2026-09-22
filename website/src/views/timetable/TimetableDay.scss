@@ -32,6 +32,13 @@
   }
 }
 
+// A day's minimum height is meant to give a single lesson's full-height cell some room to
+// breathe, but in compact view that same minimum stretches a day with only one row of lessons
+// far taller than its now much shorter cells actually need - so drop it here
+.compactDay {
+  min-height: 0;
+}
+
 .dayName {
   position: sticky;
   left: 0;
@@ -93,6 +100,10 @@
     padding: 0 0 0 1px;
     background: linear-gradient(to bottom, var(--gray-lightest) 50%, transparent 50%);
   }
+}
+
+.compactDayRows {
+  min-height: 0;
 }
 
 .currentDay {
