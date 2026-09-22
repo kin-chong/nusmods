@@ -9,7 +9,7 @@ import type { Dispatch } from 'types/redux';
 
 import { selectSemester } from 'actions/settings';
 import { getSemesterTimetableColors, getSemesterTimetableLessons } from 'selectors/timetables';
-import { fillColorMapping } from 'utils/colors';
+import { getSharedColors } from 'utils/friends';
 import { friendsPage, semesterForTimetablePage } from 'views/routes/paths';
 import Title from 'views/components/Title';
 import SemesterSwitcher from 'views/components/semester-switcher/SemesterSwitcher';
@@ -33,12 +33,17 @@ const FriendsContainer: FC = () => {
 
   const semester = semesterForTimetablePage(params.semester);
   const activeSemester = useSelector(({ app }: State) => app.activeSemester);
+  const shownSemester = semester ?? activeSemester;
 
-  // Colors are keyed by the user's own timetable so that a course looks the same in the user's
-  // and their friends' course lists, matching how the Timetable page colors friends' courses
-  const timetable = useSelector(getSemesterTimetableLessons)(semester ?? activeSemester);
-  const ownColors = useSelector(getSemesterTimetableColors)(semester ?? activeSemester);
-  const colors = useMemo(() => fillColorMapping(timetable, ownColors), [timetable, ownColors]);
+  const friends = useSelector(({ friends: friendsState }: State) => friendsState.friends);
+  const timetable = useSelector(getSemesterTimetableLessons)(shownSemester);
+  const ownColors = useSelector(getSemesterTimetableColors)(shownSemester);
+  // Colors cover the user's own courses and every friend's courses, so a course looks the same
+  // everywhere - including ones only a friend takes, which are not in the user's own timetable
+  const colors = useMemo(
+    () => getSharedColors(timetable, ownColors, friends, shownSemester),
+    [timetable, ownColors, friends, shownSemester],
+  );
 
   const handleSelectSemester = useCallback(
     (newSemester: Semester) => {

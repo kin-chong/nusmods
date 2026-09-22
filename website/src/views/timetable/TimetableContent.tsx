@@ -68,7 +68,6 @@ import TimetableActions from './TimetableActions';
 import TimetableModulesTable from './TimetableModulesTable';
 import ExamCalendar from './ExamCalendar';
 import ModulesTableFooter from './ModulesTableFooter';
-import FriendsPanel from './FriendsPanel';
 import styles from './TimetableContent.scss';
 import { serializeLessonDetails } from 'utils/timetables';
 
@@ -621,15 +620,6 @@ class TimetableContent extends React.Component<Props, State> {
                   taInTimetable={taInTimetable}
                 />
               </div>
-              {!readOnly && (
-                <div className="col-12 no-export">
-                  <FriendsPanel
-                    semester={semester}
-                    colors={friendColors}
-                    horizontalOrientation={!isVerticalOrientation}
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
