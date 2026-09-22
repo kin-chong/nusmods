@@ -35,6 +35,7 @@ const exportData: ExportData = {
     id: 'google',
     timetableOrientation: VERTICAL,
     showTitle: true,
+    compactView: false,
   },
   settings: {
     colorScheme: DARK_COLOR_SCHEME,
@@ -86,5 +87,6 @@ test('reducers should set export data state', () => {
     id: 'google',
     timetableOrientation: VERTICAL,
     showTitle: true,
+    compactView: false,
   });
 });

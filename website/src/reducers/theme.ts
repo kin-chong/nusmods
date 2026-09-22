@@ -6,6 +6,7 @@ import { SET_EXPORTED_DATA } from 'actions/constants';
 import {
   CYCLE_THEME,
   SELECT_THEME,
+  TOGGLE_COMPACT_VIEW,
   TOGGLE_TIMETABLE_ORIENTATION,
   TOGGLE_TITLE_DISPLAY,
 } from 'actions/theme';
@@ -17,6 +18,7 @@ export const defaultThemeState: ThemeState = {
   id: 'eighties',
   timetableOrientation: HORIZONTAL,
   showTitle: false,
+  compactView: false,
 };
 export const themeIds = themes.map((obj: Theme) => obj.id);
 
@@ -54,6 +56,12 @@ function theme(state: ThemeState = defaultThemeState, action: Actions): ThemeSta
       return {
         ...state,
         showTitle: !state.showTitle,
+      };
+
+    case TOGGLE_COMPACT_VIEW:
+      return {
+        ...state,
+        compactView: !state.compactView,
       };
     default:
       return state;

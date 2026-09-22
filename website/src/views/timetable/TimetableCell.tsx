@@ -23,6 +23,7 @@ import styles from './TimetableCell.scss';
 
 type Props = {
   showTitle: boolean;
+  compactView?: boolean;
   lesson: ColoredLesson;
   onHover: OnHoverCell;
   style?: React.CSSProperties;
@@ -118,7 +119,7 @@ function formatWeekRange(weekRange: WeekRange) {
  * might explore other representations e.g. grouped lessons
  */
 const TimetableCell: React.FC<Props> = (props) => {
-  const { lesson, showTitle, onClick, onHover, hoverLesson, transparent } = props;
+  const { lesson, showTitle, compactView, onClick, onHover, hoverLesson, transparent } = props;
 
   const moduleName = showTitle ? `${lesson.moduleCode} ${lesson.title}` : lesson.moduleCode;
   const Cell = props.onClick ? 'button' : 'div';
@@ -186,11 +187,15 @@ const TimetableCell: React.FC<Props> = (props) => {
               <Plus className={styles.taActionIndicator} />
             ))}
         </div>
-        <div>
-          {LESSON_TYPE_ABBREV[lesson.lessonType]} [{lesson.classNo}]
-        </div>
-        <div>{lesson.venue.startsWith('E-Learn') ? 'E-Learning' : lesson.venue}</div>
-        {weekText && <div>{weekText}</div>}
+        {!compactView && (
+          <>
+            <div>
+              {LESSON_TYPE_ABBREV[lesson.lessonType]} [{lesson.classNo}]
+            </div>
+            <div>{lesson.venue.startsWith('E-Learn') ? 'E-Learning' : lesson.venue}</div>
+            {weekText && <div>{weekText}</div>}
+          </>
+        )}
       </div>
     </Cell>
   );

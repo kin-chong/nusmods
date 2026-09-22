@@ -2,8 +2,8 @@ import * as React from 'react';
 import classnames from 'classnames';
 import { connect } from 'react-redux';
 
-import { Calendar, Grid, Sidebar, Type } from 'react-feather';
-import { toggleTimetableOrientation, toggleTitleDisplay } from 'actions/theme';
+import { Calendar, Grid, Minimize2, Sidebar, Type } from 'react-feather';
+import { toggleCompactView, toggleTimetableOrientation, toggleTitleDisplay } from 'actions/theme';
 import { ModuleCode, Semester } from 'types/modules';
 import { SemTimetableConfig } from 'types/timetables';
 
@@ -24,6 +24,9 @@ type Props = {
 
   showTitle: boolean;
   toggleTitleDisplay: () => void;
+
+  compactView: boolean;
+  toggleCompactView: () => void;
 
   showExamCalendar: boolean;
   toggleExamCalendar: () => void;
@@ -62,6 +65,17 @@ const TimetableActions: React.FC<Props> = (props) => (
           {props.showTitle ? 'Hide Titles' : 'Show Titles'}
         </button>
       )}
+
+      <button
+        type="button"
+        className={classnames(styles.compactViewBtn, 'btn-outline-primary btn btn-svg')}
+        aria-pressed={props.compactView}
+        onClick={props.toggleCompactView}
+        disabled={props.showExamCalendar}
+      >
+        <Minimize2 className={styles.compactViewIcon} />
+        {props.compactView ? 'Full View' : 'Compact View'}
+      </button>
 
       {config.examAvailabilitySet.has(props.semester) && (
         <button
@@ -102,4 +116,5 @@ const TimetableActions: React.FC<Props> = (props) => (
 export default connect(null, {
   toggleTimetableOrientation,
   toggleTitleDisplay,
+  toggleCompactView,
 })(TimetableActions);

@@ -93,6 +93,7 @@ function renderPiece(tiles: Board) {
       verticalMode
       dayLessonRows={pieceToTimetableDayArrangement(tiles)}
       showTitle={false}
+      compactView={false}
       isScrolledHorizontally={false}
       startingIndex={INITIAL_ROW_INDEX}
       endingIndex={INITIAL_ROW_INDEX + tiles[0].length}

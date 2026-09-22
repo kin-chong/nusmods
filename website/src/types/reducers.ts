@@ -89,6 +89,7 @@ export type ThemeState = Readonly<{
   id: string;
   timetableOrientation: TimetableOrientation;
   showTitle: boolean;
+  compactView: boolean;
 }>;
 
 /* settings */

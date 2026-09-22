@@ -29,3 +29,11 @@ export function toggleTitleDisplay() {
     payload: null,
   };
 }
+
+export const TOGGLE_COMPACT_VIEW = 'TOGGLE_COMPACT_VIEW' as const;
+export function toggleCompactView() {
+  return {
+    type: TOGGLE_COMPACT_VIEW,
+    payload: null,
+  };
+}

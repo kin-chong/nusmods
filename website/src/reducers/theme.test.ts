@@ -50,4 +50,13 @@ describe('theme', () => {
     const nextState2: ThemeState = reducer(nextState, action);
     expect(nextState2).toEqual(themeInitialState);
   });
+
+  test('toggle compact view', () => {
+    const action = actions.toggleCompactView();
+    const nextState: ThemeState = reducer(themeInitialState, action);
+    expect(nextState).toEqual({ ...themeInitialState, compactView: true });
+
+    const nextState2: ThemeState = reducer(nextState, action);
+    expect(nextState2).toEqual(themeInitialState);
+  });
 });

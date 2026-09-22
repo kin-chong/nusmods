@@ -94,6 +94,7 @@ type Props = OwnProps & {
   activeLesson: Lesson | null;
   timetableOrientation: TimetableOrientation;
   showTitle: boolean;
+  compactView: boolean;
   hiddenInTimetable: ModuleCode[];
   taInTimetable: ModuleCode[];
   friends: readonly Friend[];
@@ -468,6 +469,7 @@ class TimetableContent extends React.Component<Props, State> {
       activeLesson,
       timetableOrientation,
       showTitle,
+      compactView,
       readOnly,
       hiddenInTimetable,
       taInTimetable,
@@ -568,6 +570,7 @@ class TimetableContent extends React.Component<Props, State> {
                   isVerticalOrientation={isVerticalOrientation}
                   isScrolledHorizontally={this.state.isScrolledHorizontally}
                   showTitle={isShowingTitle}
+                  compactView={compactView}
                   onModifyCell={this.modifyCell(
                     interactableLessonsMap,
                     activeLesson,
@@ -588,6 +591,7 @@ class TimetableContent extends React.Component<Props, State> {
                 <TimetableActions
                   isVerticalOrientation={isVerticalOrientation}
                   showTitle={isShowingTitle}
+                  compactView={compactView}
                   semester={semester}
                   timetable={this.props.timetable}
                   showExamCalendar={showExamCalendar}
@@ -647,6 +651,7 @@ function mapStateToProps(state: StoreState, ownProps: OwnProps) {
     activeLesson: state.app.activeLesson,
     timetableOrientation: state.theme.timetableOrientation,
     showTitle: state.theme.showTitle,
+    compactView: state.theme.compactView,
     hiddenInTimetable,
     taInTimetable: taModuleCodes,
     friends: state.friends.friends,

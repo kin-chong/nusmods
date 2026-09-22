@@ -11,6 +11,7 @@ import TimetableCell from './TimetableCell';
 type Props = {
   verticalMode: boolean;
   showTitle: boolean;
+  compactView: boolean;
   startingIndex: number;
   endingIndex: number;
   lessons: ColoredLesson[] | InteractableLesson[];
@@ -68,6 +69,7 @@ const TimetableRow: React.FC<Props> = (props) => {
             style={style}
             lesson={lesson}
             showTitle={props.showTitle}
+            compactView={props.compactView}
             hoverLesson={props.hoverLesson}
             onHover={props.onCellHover}
             transparent={lesson.startTime === lesson.endTime}

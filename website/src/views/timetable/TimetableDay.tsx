@@ -16,6 +16,7 @@ type Props = {
   dayLessonRows: TimetableDayArrangement<ColoredLesson>;
   verticalMode: boolean;
   showTitle: boolean;
+  compactView: boolean;
   isScrolledHorizontally: boolean;
   startingIndex: number;
   endingIndex: number;
@@ -84,6 +85,7 @@ const TimetableDay: React.FC<Props> = (props) => {
             endingIndex={endingIndex}
             verticalMode={verticalMode}
             showTitle={props.showTitle}
+            compactView={props.compactView}
             lessons={dayLessonRow}
             onModifyCell={props.onModifyCell}
             hoverLesson={props.hoverLesson}

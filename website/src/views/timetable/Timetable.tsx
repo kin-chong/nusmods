@@ -33,6 +33,7 @@ type Props = TimerData & {
   isVerticalOrientation?: boolean;
   isScrolledHorizontally?: boolean;
   showTitle?: boolean;
+  compactView?: boolean;
   onModifyCell?: OnModifyCell;
   highlightPeriod?: TimePeriod;
 };
@@ -52,6 +53,7 @@ class Timetable extends React.PureComponent<Props, State> {
     isVerticalOrientation: false,
     isScrolledHorizontally: false,
     showTitle: false,
+    compactView: false,
     onModifyCell: noop,
   };
 
@@ -109,6 +111,7 @@ class Timetable extends React.PureComponent<Props, State> {
                 onCellHover={this.onCellHover}
                 verticalMode={this.props.isVerticalOrientation || false}
                 showTitle={this.props.showTitle || false}
+                compactView={this.props.compactView || false}
                 isScrolledHorizontally={this.props.isScrolledHorizontally || false}
                 dayLessonRows={this.props.lessons[day] || EMPTY_ROW_LESSONS}
                 isCurrentDay={index === currentDayIndex}
