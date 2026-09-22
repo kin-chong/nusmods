@@ -44,6 +44,11 @@ export function semesterForTimetablePage(semStr: string | null | undefined): Sem
   return toSemester[semStr] || null;
 }
 
+// Semester -> Friends page path
+export function friendsPage(semester: Semester): string {
+  return `/friends/${fromSemester[semester]}`;
+}
+
 // Module Code, Module Title -> Module page path
 export function modulePage(moduleCode: ModuleCode, moduleTitle?: ModuleTitle | null): string {
   return `/courses/${moduleCode}/${kebabCase(moduleTitle || '')}`;

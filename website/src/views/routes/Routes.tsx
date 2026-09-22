@@ -16,6 +16,7 @@ import AppsContainer from 'views/static/AppsContainer';
 import NotFoundPage from 'views/errors/NotFoundPage';
 import TodayContainer from 'views/today/TodayContainer';
 import PlannerContainer from 'views/planner/PlannerContainer';
+import FriendsContainer from 'views/friends/FriendsContainer';
 import TetrisContainer from 'views/tetris/TetrisContainer';
 import MpeContainer from 'views/mpe/MpeContainer';
 import OptimiserContainer from 'views/optimiser/OptimiserContainer';
@@ -38,6 +39,7 @@ const Routes: React.FC = () => (
     <Route path="/venues/:venue?" component={VenuesContainer} />
     <Route path="/today" component={TodayContainer} />
     <Route path="/planner" component={PlannerContainer} />
+    <Route path="/friends/:semester?" component={FriendsContainer} />
     <Route path="/cpex" component={MpeContainer} />
     <Route path="/tetris" component={TetrisContainer} />
 

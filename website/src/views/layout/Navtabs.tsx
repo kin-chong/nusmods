@@ -13,14 +13,16 @@ import {
   Star,
   Target,
   Trello,
+  Users,
 } from 'react-feather';
 
 import { showCPExTab } from 'featureFlags';
 import ExternalLink from 'views/components/ExternalLink';
-import { timetablePage } from 'views/routes/paths';
+import { friendsPage, timetablePage } from 'views/routes/paths';
 import { preload as preloadToday } from 'views/today/TodayContainer';
 import { preload as preloadVenues } from 'views/venues/VenuesContainer';
 import { preload as preloadContribute } from 'views/contribute/ContributeContainer';
+import { preload as preloadFriends } from 'views/friends/FriendsContainer';
 import type { State } from 'types/state';
 
 import styles from './Navtabs.scss';
@@ -48,6 +50,15 @@ const Navtabs: FC = () => {
       <NavLink {...tabProps} to="/optimiser">
         <Cpu />
         <span className={styles.title}>Optimiser</span>
+      </NavLink>
+      <NavLink
+        {...tabProps}
+        to={friendsPage(activeSemester)}
+        onMouseOver={preloadFriends}
+        onFocus={preloadFriends}
+      >
+        <Users />
+        <span className={styles.title}>Friends</span>
       </NavLink>
       <NavLink
         {...tabProps}
