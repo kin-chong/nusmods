@@ -82,6 +82,24 @@ test('friends can be hidden and shown again without losing their timetable', () 
   expect(shown.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
 });
 
+test('all friends can be hidden and shown at once', () => {
+  const state = withFriends('Alice', 'Bob');
+  const [alice] = state.friends;
+
+  // Some friends may already be hidden
+  const hidden = [
+    actions.setFriendModule(alice.id, 1, 'CS1010S', lessonConfig),
+    actions.setFriendHidden(alice.id, true),
+    actions.setAllFriendsHidden(true),
+  ].reduce(reducer, state);
+  expect(hidden.friends.map((friend) => friend.hidden)).toEqual([true, true]);
+  expect(hidden.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
+
+  const shown = reducer(hidden, actions.setAllFriendsHidden(false));
+  expect(shown.friends.map((friend) => friend.hidden)).toEqual([false, false]);
+  expect(shown.friends[0].timetable).toEqual({ 1: { CS1010S: lessonConfig } });
+});
+
 test('the courses of a friend in a semester can be replaced', () => {
   const state = withFriends('Alice', 'Bob');
   const [alice, bob] = state.friends;

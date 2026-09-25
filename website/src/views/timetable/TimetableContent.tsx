@@ -599,6 +599,7 @@ class TimetableContent extends React.Component<Props, State> {
                   toggleExamCalendar={() => this.setState({ showExamCalendar: !showExamCalendar })}
                   hiddenModules={hiddenInTimetable}
                   taModules={taInTimetable}
+                  friends={shownFriends}
                 />
               </div>
 

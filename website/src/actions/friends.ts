@@ -47,6 +47,14 @@ export function setFriendHidden(friendId: string, hidden: boolean) {
   };
 }
 
+export const SET_ALL_FRIENDS_HIDDEN = 'SET_ALL_FRIENDS_HIDDEN' as const;
+export function setAllFriendsHidden(hidden: boolean) {
+  return {
+    type: SET_ALL_FRIENDS_HIDDEN,
+    payload: { hidden },
+  };
+}
+
 // Replaces all of the courses a friend has in a semester
 export const SET_FRIEND_TIMETABLE = 'SET_FRIEND_TIMETABLE' as const;
 export function setFriendTimetable(

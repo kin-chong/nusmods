@@ -13,6 +13,7 @@ import {
   REMOVE_FRIEND_MODULE,
   REMOVE_FRIEND_TA_MODULE,
   RENAME_FRIEND,
+  SET_ALL_FRIENDS_HIDDEN,
   SET_FRIEND_HIDDEN,
   SET_FRIEND_MODULE,
   SET_FRIEND_TIMETABLE,
@@ -89,6 +90,15 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
       const { friendId, hidden } = action.payload;
 
       return updateFriend(state, friendId, (friend) => ({ ...friend, hidden }));
+    }
+
+    case SET_ALL_FRIENDS_HIDDEN: {
+      const { hidden } = action.payload;
+
+      return {
+        ...state,
+        friends: state.friends.map((friend) => ({ ...friend, hidden })),
+      };
     }
 
     case REMOVE_FRIEND:
