@@ -2,7 +2,7 @@ import * as React from 'react';
 import classnames from 'classnames';
 import { connect } from 'react-redux';
 
-import { Calendar, Grid, Minimize2, Sidebar, Type, Users } from 'react-feather';
+import { Calendar, Grid, Maximize2, Minimize2, Sidebar, Type, Users } from 'react-feather';
 import { toggleCompactView, toggleTimetableOrientation, toggleTitleDisplay } from 'actions/theme';
 import { setAllFriendsHidden } from 'actions/friends';
 import { ModuleCode, Semester } from 'types/modules';
@@ -90,7 +90,11 @@ const TimetableActions: React.FC<Props> = (props) => {
           onClick={props.toggleCompactView}
           disabled={props.showExamCalendar}
         >
-          <Minimize2 className={styles.compactViewIcon} />
+          {props.compactView ? (
+            <Maximize2 className={styles.compactViewIcon} />
+          ) : (
+            <Minimize2 className={styles.compactViewIcon} />
+          )}
           {props.compactView ? 'Full View' : 'Compact View'}
         </button>
 
