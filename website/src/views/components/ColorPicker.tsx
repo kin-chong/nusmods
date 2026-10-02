@@ -4,7 +4,7 @@ import Downshift, { ChildrenFunction } from 'downshift';
 import { range } from 'lodash-es';
 
 import { ColorIndex } from 'types/timetables';
-import { NUM_DIFFERENT_COLORS, TRANSPARENT_COLOR_INDEX } from 'utils/colors';
+import { NUM_ALL_COLORS, TRANSPARENT_COLOR_INDEX } from 'utils/colors';
 
 import TransparentIcon from 'img/icons/transparent.svg';
 import styles from './ColorPicker.scss';
@@ -57,7 +57,7 @@ const ColorPicker = memo<Props>((props) => {
           className={classnames(styles.palette, { [styles.isClosed]: !isOpen })}
           {...getMenuProps()}
         >
-          {range(NUM_DIFFERENT_COLORS).map((index: ColorIndex) => (
+          {range(NUM_ALL_COLORS).map((index: ColorIndex) => (
             <button
               type="button"
               {...getItemProps({ item: index === color ? TRANSPARENT_COLOR_INDEX : index })}

@@ -344,7 +344,7 @@ describe(FriendsPanel, () => {
       await makeWithCourse(cs4243Classes);
 
       expect(screen.getByLabelText(enableLabel)).toHaveAttribute('aria-pressed', 'false');
-      expect(document.querySelector('.colorTa')).not.toBeInTheDocument();
+      expect(document.querySelector('.ta')).not.toBeInTheDocument();
     });
 
     test('should make the friend a TA for the course when it is clicked, and show it', async () => {
@@ -361,7 +361,7 @@ describe(FriendsPanel, () => {
         );
       });
       expect(screen.getByLabelText(disableLabel)).toHaveAttribute('aria-pressed', 'true');
-      expect(document.querySelector('.colorTa')).toBeInTheDocument();
+      expect(document.querySelector('.ta')).toBeInTheDocument();
     });
 
     test('should put the friend in one class of each lesson type when it is turned off', async () => {
@@ -383,7 +383,7 @@ describe(FriendsPanel, () => {
       expect(getAlice(store).timetable[1].CS4243.Lecture).toEqual(['1']);
       expect([['2'], ['4']]).toContainEqual(getAlice(store).timetable[1].CS4243.Laboratory);
       expect(screen.getByLabelText(enableLabel)).toHaveAttribute('aria-pressed', 'false');
-      expect(document.querySelector('.colorTa')).not.toBeInTheDocument();
+      expect(document.querySelector('.ta')).not.toBeInTheDocument();
     });
   });
 

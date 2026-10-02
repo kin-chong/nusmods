@@ -246,11 +246,16 @@ export const TimetableContainerComponent: FC = () => {
   }, [semester, params.action, isLoading, location.search, modules]);
 
   const displayedTimetable = importedTimetable || timetable;
-  const filledColors = useMemo(
-    () => fillColorMapping(displayedTimetable, colors),
-    [colors, displayedTimetable],
-  );
   const readOnly = displayedTimetable === importedTimetable;
+  const filledColors = useMemo(
+    () => ({
+      // The colors chosen for courses that only friends take are kept, so they can be used for
+      // the friends' lessons. Shared timetables do not have friends, so their colors are not.
+      ...(readOnly ? {} : colors),
+      ...fillColorMapping(displayedTimetable, colors),
+    }),
+    [colors, displayedTimetable, readOnly],
+  );
 
   useScrollToTop();
 

@@ -16,6 +16,7 @@ import {
 
 import { ColorMapping, Friend, ModuleSelectList } from 'types/reducers';
 import { ModuleCode, Semester } from 'types/modules';
+import { ColorIndex } from 'types/timetables';
 import type { Dispatch } from 'types/redux';
 import { State } from 'types/state';
 
@@ -32,13 +33,14 @@ import {
   syncFriend,
 } from 'actions/friends';
 import { openNotification } from 'actions/app';
-import { fetchModules } from 'actions/timetables';
+import { fetchModules, selectModuleColor } from 'actions/timetables';
 import { intersperse } from 'utils/array';
 import { createSearchPredicate, sortModules } from 'utils/moduleSearch';
 import { BULLET_NBSP } from 'utils/react';
 import config from 'config';
 import Online from 'views/components/Online';
 import Tooltip from 'views/components/Tooltip';
+import ColorPicker from 'views/components/ColorPicker';
 import { modulePage } from 'views/routes/paths';
 import ModulesSelect from './ModulesSelect';
 import { getModuleSubtitle } from './TimetableModulesTable';
@@ -80,11 +82,15 @@ const FriendModule: FC<FriendModuleProps> = ({
         horizontalOrientation ? 'col-lg-4' : 'col-md-12',
       )}
     >
-      <div className={tableStyles.moduleColor}>
-        <span
-          className={classnames('btn', `color-${colorIndex}`, styles.color, {
-            [styles.colorTa]: isTa,
-          })}
+      <div className={classnames(tableStyles.moduleColor, styles.color)}>
+        <ColorPicker
+          label={`Change ${moduleCode} timetable color`}
+          color={colorIndex}
+          isHidden={false}
+          isTa={isTa}
+          onChooseColor={(newColorIndex: ColorIndex) =>
+            dispatch(selectModuleColor(semester, moduleCode, newColorIndex))
+          }
         />
       </div>
       <div className={tableStyles.moduleInfo}>

@@ -111,17 +111,7 @@
   white-space: nowrap;
 }
 
-// Looks like the color of the user's own courses, but cannot be changed
+// Dimmed along with the name of a friend that is hidden
 .color {
   display: block;
-  width: 1.25rem;
-  height: 1.25rem;
-  padding: 0;
-  border: 0;
-  pointer-events: none;
-}
-
-// The same as the color of a course of the user that they are a TA for
-.colorTa {
-  clip-path: polygon(0% 0%, 100% 0%, 0% 100%);
 }

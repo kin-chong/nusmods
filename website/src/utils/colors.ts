@@ -4,22 +4,31 @@ import { ColorIndex, SemTimetableConfig } from 'types/timetables';
 import { ColorMapping } from 'types/reducers';
 import { ModuleCode } from 'types/modules';
 
+// The colors of a theme
 export const NUM_DIFFERENT_COLORS = 8;
+// More colors that are the same in every theme, which are for telling apart the courses of the
+// user and their friends. They are used after the colors of the theme.
+export const NUM_EXTRA_COLORS = 16;
+export const NUM_ALL_COLORS = NUM_DIFFERENT_COLORS + NUM_EXTRA_COLORS;
 export const TRANSPARENT_COLOR_INDEX = -1;
 
-function generateInitialColors(): ColorIndex[] {
-  return range(NUM_DIFFERENT_COLORS);
+function generateInitialColors(numColors: number): ColorIndex[] {
+  return range(numColors);
 }
 
 // Returns a new index that is not present in the current color index.
 // If there are more than NUM_DIFFERENT_COLORS modules already present,
 // will try to balance the color distribution if randomize === true.
-export function getNewColor(currentColors: ColorIndex[], randomize = true): ColorIndex {
-  let availableColors = generateInitialColors();
+export function getNewColor(
+  currentColors: ColorIndex[],
+  randomize = true,
+  numColors = NUM_DIFFERENT_COLORS,
+): ColorIndex {
+  let availableColors = generateInitialColors(numColors);
   currentColors.forEach((index: ColorIndex) => {
     availableColors = without(availableColors, index);
     if (availableColors.length === 0) {
-      availableColors = generateInitialColors();
+      availableColors = generateInitialColors(numColors);
     }
   });
 
@@ -55,6 +64,7 @@ export function colorLessonsByKey<T>(
 export function fillColorMapping(
   timetable: SemTimetableConfig,
   original: ColorMapping,
+  numColors = NUM_DIFFERENT_COLORS,
 ): ColorMapping {
   const colorMap: ColorMapping = {};
   const colorsUsed: ColorIndex[] = [];
@@ -72,7 +82,7 @@ export function fillColorMapping(
 
   // Assign the modules without colors
   withoutColors.forEach((moduleCode) => {
-    const color = getNewColor(colorsUsed, false);
+    const color = getNewColor(colorsUsed, false, numColors);
     colorMap[moduleCode] = color;
     colorsUsed.push(color);
   });

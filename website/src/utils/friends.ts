@@ -12,7 +12,7 @@ import { ColorMapping, Friend, ModulesMap } from 'types/reducers';
 import { Day, ModuleCode, Semester } from 'types/modules';
 import { ModuleWithColor } from 'types/views';
 
-import { fillColorMapping } from 'utils/colors';
+import { fillColorMapping, NUM_ALL_COLORS } from 'utils/colors';
 import { getLessonTimeHours, getLessonTimeMinutes } from 'utils/timify';
 import {
   arrangeLessonsForWeek,
@@ -54,7 +54,7 @@ export function getSharedColors(
   // The user's modules come first so that their colors are counted as used before any are
   // handed out, and modules that were already colored do not change color when friends change
   const allModules = Object.assign({}, ownTimetable, ...friends.map((f) => f.timetable[semester]));
-  return fillColorMapping(allModules, ownColors);
+  return fillColorMapping(allModules, ownColors, NUM_ALL_COLORS);
 }
 
 /**

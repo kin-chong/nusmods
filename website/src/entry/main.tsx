@@ -15,8 +15,12 @@ import { initializeMamoto } from 'bootstrapping/matomo';
 import registerServiceWorker from 'bootstrapping/service-worker-manager';
 
 import 'styles/main.scss';
+import { NUM_DIFFERENT_COLORS, NUM_EXTRA_COLORS } from 'utils/colors';
+import { installExtraColorStyles } from 'utils/extraColors';
 
 import App from './App';
+
+installExtraColorStyles(NUM_DIFFERENT_COLORS, NUM_EXTRA_COLORS);
 
 const { store, persistor } = configureStore();
 
