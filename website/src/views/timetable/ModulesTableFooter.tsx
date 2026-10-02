@@ -9,8 +9,13 @@ import { State } from 'types/state';
 
 import { setModuleTableOrder } from 'actions/settings';
 import { getExamDate, renderMCs } from 'utils/modules';
+import { FreeTimeSlot } from 'utils/friends';
+import { formatTime } from 'utils/timify';
 import config from 'config';
 import styles from './TimetableModulesTable.scss';
+
+const formatMinutes = (minutes: number) =>
+  formatTime(Math.floor(minutes / 60) * 100 + (minutes % 60));
 
 type ModuleOrder = {
   label: string;
@@ -50,6 +55,8 @@ type Props = {
   modules: Module[];
   hiddenInTimetable: ModuleCode[];
   taInTimetable: ModuleCode[];
+  // Time when the user and every shown friend are free, by day. Left out if no friends are shown.
+  commonFreeTime?: Record<string, FreeTimeSlot[]>;
 
   setModuleTableOrder: (moduleTableOrder: ModuleTableOrder) => void;
 };
@@ -94,6 +101,25 @@ const ModulesTableFooter: React.FC<Props> = (props) => {
           ))}
         </select>
       </div>
+      {props.commonFreeTime && (
+        <div className={classnames(styles.commonFreeTime, 'col-12')}>
+          <hr />
+          <h4>Common free time</h4>
+          <div className={styles.note}>8am - 8pm, everyone shown</div>
+          {Object.entries(props.commonFreeTime).map(([day, slots]) => (
+            <div key={day}>
+              {day.substring(0, 3)}:{' '}
+              <strong>
+                {slots.length
+                  ? slots
+                      .map(({ start, end }) => `${formatMinutes(start)} - ${formatMinutes(end)}`)
+                      .join(', ')
+                  : 'none'}
+              </strong>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

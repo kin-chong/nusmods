@@ -31,6 +31,14 @@ export function addFriend(name: string) {
   };
 }
 
+export const SET_USER_NAME = 'SET_USER_NAME' as const;
+export function setUserName(name: string) {
+  return {
+    type: SET_USER_NAME,
+    payload: { name },
+  };
+}
+
 export const RENAME_FRIEND = 'RENAME_FRIEND' as const;
 export function renameFriend(friendId: string, name: string) {
   return {

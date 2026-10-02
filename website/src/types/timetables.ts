@@ -74,6 +74,8 @@ export type ColoredLesson = Lesson & {
   // Set when the lesson belongs to a friend instead of the user
   friendId?: string;
   friendName?: string;
+  // Set on the user's own lessons when they have entered their name
+  ownerName?: string;
 };
 
 // The friend's lesson that is being changed, which is picked by clicking on it in the timetable

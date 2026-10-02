@@ -17,6 +17,7 @@ import {
   SET_FRIEND_HIDDEN,
   SET_FRIEND_MODULE,
   SET_FRIEND_TIMETABLE,
+  SET_USER_NAME,
 } from 'actions/friends';
 import config from 'config';
 
@@ -35,7 +36,7 @@ export const persistConfig = {
     const savedFriends = inbound.friends ?? original.friends;
 
     if (inbound.academicYear === original.academicYear) {
-      return { ...original, friends: savedFriends };
+      return { ...original, friends: savedFriends, userName: inbound.userName };
     }
 
     if (debug) {
@@ -46,6 +47,7 @@ export const persistConfig = {
     return {
       ...original,
       friends: savedFriends.map((friend) => ({ ...friend, timetable: {}, ta: {} })),
+      userName: inbound.userName,
     };
   },
 };
@@ -79,6 +81,9 @@ function friends(state: FriendsState = defaultFriendsState, action: Actions): Fr
         ],
       };
     }
+
+    case SET_USER_NAME:
+      return { ...state, userName: action.payload.name };
 
     case RENAME_FRIEND: {
       const { friendId, name } = action.payload;

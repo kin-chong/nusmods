@@ -9,10 +9,11 @@ import {
   TimetableArrangement,
 } from 'types/timetables';
 import { ColorMapping, Friend, ModulesMap } from 'types/reducers';
-import { ModuleCode, Semester } from 'types/modules';
+import { Day, ModuleCode, Semester } from 'types/modules';
 import { ModuleWithColor } from 'types/views';
 
 import { fillColorMapping } from 'utils/colors';
+import { getLessonTimeHours, getLessonTimeMinutes } from 'utils/timify';
 import {
   arrangeLessonsForWeek,
   getInteractableLessons,
@@ -181,4 +182,43 @@ export function addFriendsToExams(
     }));
 
   return [...sharedModules, ...friendOnlyModules];
+}
+
+// The part of the day that free time is looked for in, and the days it is shown for
+const FREE_TIME_START = 8 * 60;
+const FREE_TIME_END = 20 * 60;
+const FREE_TIME_DAYS: readonly Day[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+export type FreeTimeSlot = { readonly start: number; readonly end: number }; // minutes since 0000
+
+const toMinutes = (time: string) => getLessonTimeHours(time) * 60 + getLessonTimeMinutes(time);
+
+/**
+ * The time of each day when none of the given lessons are on, which is when the user and all the
+ * friends that the lessons belong to are free. A lesson is counted as taking up its time in every
+ * week, even if it only runs in some, so the free time is the time that is free in all weeks.
+ */
+export function getCommonFreeTime(
+  lessons: readonly { day: string; startTime: string; endTime: string }[],
+): Record<string, FreeTimeSlot[]> {
+  const result: Record<string, FreeTimeSlot[]> = {};
+
+  FREE_TIME_DAYS.forEach((day) => {
+    const busy = lessons
+      .filter((lesson) => lesson.day === day)
+      .map((lesson) => ({ start: toMinutes(lesson.startTime), end: toMinutes(lesson.endTime) }))
+      .sort((a, b) => a.start - b.start);
+
+    const free: FreeTimeSlot[] = [];
+    let cursor = FREE_TIME_START;
+    busy.forEach(({ start, end }) => {
+      if (start > cursor) free.push({ start: cursor, end: Math.min(start, FREE_TIME_END) });
+      cursor = Math.max(cursor, end);
+    });
+    if (cursor < FREE_TIME_END) free.push({ start: cursor, end: FREE_TIME_END });
+
+    result[day] = free.filter((slot) => slot.end > slot.start);
+  });
+
+  return result;
 }

@@ -151,6 +151,8 @@ export type Friend = {
 
 export type FriendsState = {
   readonly friends: readonly Friend[];
+  // The user's own name, shown in brackets on their lessons like friends' names are
+  readonly userName?: string;
   // The academic year that the friends' timetables are for, since the classes are stored as
   // positions in the module data, which is different every year
   readonly academicYear: string;

@@ -8,6 +8,7 @@ import type { State } from 'types/state';
 import type { Dispatch } from 'types/redux';
 
 import { selectSemester } from 'actions/settings';
+import { setUserName } from 'actions/friends';
 import { getSemesterTimetableColors, getSemesterTimetableLessons } from 'selectors/timetables';
 import { getSharedColors } from 'utils/friends';
 import { friendsPage, semesterForTimetablePage } from 'views/routes/paths';
@@ -35,6 +36,7 @@ const FriendsContainer: FC = () => {
   const activeSemester = useSelector(({ app }: State) => app.activeSemester);
   const shownSemester = semester ?? activeSemester;
 
+  const userName = useSelector(({ friends: friendsState }: State) => friendsState.userName ?? '');
   const friends = useSelector(({ friends: friendsState }: State) => friendsState.friends);
   const timetable = useSelector(getSemesterTimetableLessons)(shownSemester);
   const ownColors = useSelector(getSemesterTimetableColors)(shownSemester);
@@ -70,6 +72,16 @@ const FriendsContainer: FC = () => {
         </h1>
         <SemesterSwitcher semester={semester} onSelectSemester={handleSelectSemester} />
       </div>
+
+      <input
+        type="text"
+        className="form-control mb-3"
+        style={{ maxWidth: '16rem' }}
+        placeholder="Your name"
+        aria-label="Your name"
+        value={userName}
+        onChange={(e) => dispatch(setUserName(e.target.value))}
+      />
 
       <FriendsPanel semester={semester} colors={colors} horizontalOrientation />
     </div>

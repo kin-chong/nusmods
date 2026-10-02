@@ -51,6 +51,7 @@ import {
 } from 'utils/timetables';
 import {
   addFriendsToExams,
+  getCommonFreeTime,
   arrangeFriendLanes,
   getFriendsLessons,
   getSharedColors,
@@ -98,6 +99,7 @@ type Props = OwnProps & {
   hiddenInTimetable: ModuleCode[];
   taInTimetable: ModuleCode[];
   friends: readonly Friend[];
+  userName?: string;
 
   // Actions
   addModule: (semester: Semester, moduleCode: ModuleCode) => void;
@@ -495,7 +497,11 @@ class TimetableContent extends React.Component<Props, State> {
         activeLesson,
       );
 
-    const interactableLessons: InteractableLesson[] = timetableLessonsArray(interactableLessonsMap);
+    // The user's name is only shown on their own timetable, not on shared timetables
+    const userName = readOnly ? undefined : this.props.userName;
+    const interactableLessons: InteractableLesson[] = timetableLessonsArray(
+      interactableLessonsMap,
+    ).map((lesson) => (userName ? { ...lesson, ownerName: userName } : lesson));
 
     // Friends are only overlaid on the user's own timetable, not on shared timetables
     const shownFriends = readOnly ? [] : friends;
@@ -623,6 +629,11 @@ class TimetableContent extends React.Component<Props, State> {
                   semester={semester}
                   hiddenInTimetable={hiddenInTimetable}
                   taInTimetable={taInTimetable}
+                  commonFreeTime={
+                    visibleFriends.length > 0
+                      ? getCommonFreeTime([...interactableLessons, ...friendsLessons])
+                      : undefined
+                  }
                 />
               </div>
             </div>
@@ -656,6 +667,7 @@ function mapStateToProps(state: StoreState, ownProps: OwnProps) {
     hiddenInTimetable,
     taInTimetable: taModuleCodes,
     friends: state.friends.friends,
+    userName: state.friends.userName,
   };
 }
 
