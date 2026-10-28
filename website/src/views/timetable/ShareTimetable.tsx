@@ -13,6 +13,7 @@ import { absolutePath, timetableShare } from 'views/routes/paths';
 import Modal from 'views/components/Modal';
 import CloseButton from 'views/components/CloseButton';
 import LoadingSpinner from 'views/components/LoadingSpinner';
+import DriveSync from 'views/components/DriveSync';
 import retryImport from 'utils/retryImport';
 
 import Tooltip from 'views/components/Tooltip';
@@ -290,6 +291,7 @@ export default class ShareTimetable extends React.PureComponent<Props, State> {
           </div>
 
           {fullUrl && this.renderSharing(fullUrl, shortUrl, isFullUrl, isLoading)}
+          <DriveSync kind="timetables" />
         </Modal>
       </>
     );

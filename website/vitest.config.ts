@@ -50,6 +50,7 @@ export default defineConfig({
     NUSMODS_ENV: JSON.stringify('test'),
     DATA_API_BASE_URL: JSON.stringify(''),
     OPTIMISER_API_URL: JSON.stringify(''),
+    GOOGLE_CLIENT_ID: JSON.stringify('test-client-id'),
     VERSION_STR: JSON.stringify(''),
     DISPLAY_COMMIT_HASH: JSON.stringify(''),
     DEBUG_SERVICE_WORKER: false,

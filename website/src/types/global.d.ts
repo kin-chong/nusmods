@@ -23,6 +23,7 @@ declare const VERSION_STR: string | undefined;
 declare const DISPLAY_COMMIT_HASH: string | undefined;
 declare const DEBUG_SERVICE_WORKER: boolean;
 declare const OPTIMISER_API_URL: string;
+declare const GOOGLE_CLIENT_ID: string | undefined;
 /* eslint-enable no-underscore-dangle */
 
 /**

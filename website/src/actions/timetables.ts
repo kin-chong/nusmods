@@ -12,7 +12,7 @@ import type {
   TimetableConfigV2,
 } from 'types/timetables';
 import type { Dispatch, GetState } from 'types/redux';
-import type { TaModulesMapV1, ColorMapping, TaModulesMap } from 'types/reducers';
+import type { TaModulesMapV1, ColorMapping, TaModulesMap, TimetablesState } from 'types/reducers';
 import type {
   ClassNo,
   LessonId,
@@ -194,6 +194,17 @@ export function setLessonConfig(
       moduleCode,
       lessonConfig,
     },
+  };
+}
+
+// Replaces every semester's timetable data at once, e.g. when loading a cloud save
+export const IMPORT_TIMETABLES = 'IMPORT_TIMETABLES' as const;
+export function importTimetables(
+  data: Pick<TimetablesState, 'lessons' | 'colors' | 'hidden' | 'ta'>,
+) {
+  return {
+    type: IMPORT_TIMETABLES,
+    payload: data,
   };
 }
 

@@ -14,6 +14,7 @@ import {
   ADD_LESSON,
   REMOVE_LESSON,
   HIDE_LESSON_IN_TIMETABLE,
+  IMPORT_TIMETABLES,
   REMOVE_MODULE,
   RESET_TIMETABLE,
   SELECT_MODULE_COLOR,
@@ -297,6 +298,11 @@ function timetables(
         hidden: { [semester]: hidden },
         ta: { [semester]: ta },
       };
+    }
+
+    case IMPORT_TIMETABLES: {
+      const { lessons, colors, hidden, ta } = action.payload;
+      return { ...state, lessons, colors, hidden, ta };
     }
 
     case SET_HIDDEN_IMPORTED: {

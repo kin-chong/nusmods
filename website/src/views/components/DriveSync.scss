@@ -1,0 +1,28 @@
+@import '~styles/utils/modules-entry.scss';
+
+.driveSync {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.heading {
+  margin-bottom: 0.25rem;
+  font-size: 1.2rem;
+  font-weight: $font-weight-bold;
+}
+
+.description {
+  color: var(--gray);
+}
+
+.buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.confirm {
+  text-align: left;
+}

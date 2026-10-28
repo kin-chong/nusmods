@@ -35,12 +35,14 @@ import Modal from 'views/components/Modal';
 import { State as StoreState } from 'types/state';
 import { downloadPlanner } from 'actions/export';
 import { PlannerState } from 'types/reducers';
+import type { PlannerSave } from 'types/schemas/cloudSave';
 import PlannerSemester from '../PlannerSemester';
 import PlannerYear from '../PlannerYear';
 import PlannerSettings from '../PlannerSettings';
 import PlannerClearButton from '../PlannerClearButton';
 import PlannerImportButton from '../PlannerImportButton';
 import PlannerExportButton from '../PlannerExportButton';
+import PlannerDriveButton from '../PlannerDriveButton';
 import CustomModuleForm from '../CustomModuleForm';
 
 import styles from './PlannerContainer.scss';
@@ -159,6 +161,15 @@ export class PlannerContainerComponent extends PureComponent<Props, State> {
     });
   };
 
+  // A cloud save has already replaced the planner state, so only module details are left to fetch
+  onLoadedFromDrive = (save: PlannerSave) => {
+    values(save.planner.modules).forEach((module) => {
+      if (module.moduleCode) {
+        this.fetchModuleOrNotify(module.moduleCode);
+      }
+    });
+  };
+
   closeAddCustomData = () => this.setState({ showCustomModule: null });
 
   closeSettingsModal = () => this.setState({ showSettings: false });
@@ -186,6 +197,7 @@ export class PlannerContainerComponent extends PureComponent<Props, State> {
             <PlannerClearButton clearPlanner={this.props.clearPlanner} />
             <PlannerImportButton importPlanner={this.onImportPlanner} />
             <PlannerExportButton downloadPlanner={this.props.downloadPlanner} />
+            <PlannerDriveButton onLoaded={this.onLoadedFromDrive} />
 
             <button
               className={classnames('btn btn-svg btn-outline-primary', styles.settingsButton)}
